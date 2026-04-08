@@ -8,9 +8,9 @@
 - RStudio
 
 ## Membres du groupe
-- Nom 1
-- Nom 2
-- Nom 3
+- Mr krizo
+- DANIEL
+- LOHORÉ 
 
 ## Organisation du projet
 - data : données
