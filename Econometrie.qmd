@@ -203,6 +203,4 @@ adf.test(MigrationNette_diff1)
 
 ```
 
-le test d'ADF confirme la sationnarité de la premiere difference
-
-en effet notre serie est de type 2 avec une p-value inferieure a 0,016 pour des retard allant jusqu'a 3. les pics de 2000 ,2010 et 2015 ainsi que leur impact seront examines un peu plus en detail apres
+La série de la Migration Nette en niveaux présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF** rejette l'hypothèse de racine unitaire avec une p-value très significative (P inferieur pratiquement a 0,01) pour les différents types de modèles et de retards. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1), toutefois** dans le type 3 du test ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
