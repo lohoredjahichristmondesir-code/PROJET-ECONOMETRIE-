@@ -1,0 +1,218 @@
+---
+title: "VAR et Causalité de Granger : Migrations, Investissements et Croissance"
+author: "Yahiri boh daniel,   ,  "
+date: "2026-02-24"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+## 1-Description du projet
+
+Le projet consiste à réaliser une étude économétrique pour comprendre comment la migration, l’investissement et la croissance économique s’influencent mutuellement en Côte d’Ivoire sur les 60 dernières années (1965–2024). En suivant la méthode de Yaya Keho, ce projet mobilise les outils avancés des séries temporelles multivariées, et notamment le modèle VAR (Vecteur Autorégressif), qui constitue le cœur analytique de l’étude.
+
+##1-1 chargement des packages
+
+```{r}
+#chargement des packages
+# Installation des packages (à faire une seule fois)
+#install.packages(c("tseries",  # Tests de base : ADF, KPSS, PP
+                   "urca",     # Tests avancés avec options (trend, drift, lags)
+                   "vars",     # Modélisation VAR (cœur de l'analyse)
+                   "aTSA"))    # Tests ADF automatiques (3 spécifications d'un coup)
+#install.packages("forecast")  # pour convertir ts en dataframe
+
+# Chargement des packages (à faire à chaque session)
+library(tseries)  # Activation des tests de stationnarité de base
+library(urca)     # Activation des tests de racine unitaire avancés
+library(vars)     # Activation des outils VAR
+library(aTSA)     # Activation des tests ADF automatisés
+library(readxl)    # fichier excel
+
+library(ggplot2)
+library(forecast)
+
+Sys.setlocale("LC_ALL", "French")
+
+```
+
+##1-2 importation des donnees et reconversion
+
+```{r}
+#importation des donnee
+donnee <- read_excel("C:\\causaliteVar.xlsx")
+donnee <- data.frame(donnee)
+colnames(donnee) <- c("annee",
+                      "PIB_reel",
+                      "InvestissementNiveau",
+                      "MigrationNette")
+View(donnee)
+```
+
+```{r}
+#passons a une normalisation : les migrations sont en miliers , conversions en millions 
+
+donnee$MigrationNette <- donnee$MigrationNette/1000
+
+# Convertir toutes les variables en ts (serie temporelle) sans la colonne date
+donnee$InvestissementNiveau_Log <- log(donnee$InvestissementNiveau)
+donnee$PIB_reel_Log <- log(donnee$PIB_reel)
+
+donnee_ts <- ts(donnee[, -c(1,2,3)], start = 1965, frequency = 1)
+View(donnee_ts)
+```
+
+```{r}
+#1-verification des valeurs manquantes et de la structure des donnees
+analyser_structure <- function(df) {
+  #a. Calcul du nombre de colonnes par type
+  nb_var_quanti <- sum(sapply(df, is.numeric))
+  nb_var_quali_categorielle <- sum(sapply(df,function(x) is.factor(x)))
+  nb_var_quali_nominale <- sum(sapply(df, function(x) is.character(x)))     
+  
+  #b. Calcul du total des valeurs manquantes (NA)
+  total_val_na <- sum(is.na(df))
+  
+  #c. Detail par colonne des na (pour plus de precision)
+  detail_na <- sapply(df, function(x) sum(is.na(x)))    
+  #d. Calcul de la proportion de valeurs manquantes
+  proportion_manquantes <- detail_na / nrow(df)
+
+  
+  #e. Affichage des resultats
+  cat("--- Resumer de la structure ---\n")
+  cat("Variables Quantitatives :", nb_var_quanti, "\n")
+  cat("Variables Qualitatives categorielle  :", nb_var_quali_categorielle, "\n")
+  cat("Nombre de variable nominale  :",nb_var_quali_nominale, "\n" )
+  cat("Total valeurs manquantes :", total_val_na, "\n\n")
+  
+  # Retourne un tableau detaille pour inspection
+  return(data.frame(
+    Type = sapply(df, class),
+    Nb_NA = detail_na,
+    Proportion=proportion_manquantes
+  ))
+
+}
+
+analyser_structure(donnee_ts)
+```
+
+##2- test de stationnarite
+
+#cas des migrations
+
+```{r}
+class(donnee_ts)
+# MIGRATION en valeur brute
+library(scales) # Nécessaire pour label_number()
+autoplot(donnee_ts[, "MigrationNette"]) +
+  # Ligne de référence à zéro (fondamental pour la migration)
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.5) +
+  # Amélioration des titres
+  labs(
+    title = "Évolution de la Migration Nette",
+    subtitle = "Côte d'Ivoire (1965-2024) ",
+    y = "Migration (en millions)",
+    x = "Année"
+  ) +
+  # Nettoyage de l'axe Y (supprime la notation 1e-04)
+  scale_y_continuous(labels = label_number(suffix = " M")) + 
+  # Grille plus propre
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    panel.grid.minor = element_blank()
+  )
+```
+
+##2.1 interpretations
+
+Bien avant tout il est interressant de noter visuellement la non stationarité du flux migratoire pour les raisons suivantes :
+
+La moyenne change au fil du temps (fenetre 2010-2015 vs 1975-1980) - La variance change (grande volatilité autour de 2010-2015)
+
+\- Il y a des tendances et ruptures structurelles visiblesLa migration nette en Côte d'Ivoire reflète fidèlement les grands cycles économiques et politiques du pays. Durant le miracle ivoirien (1960-1980), le pays exerce une forte attractivité portée par le boom agricole (café, cacao), l'urbanisation rapide d'Abidjan et un marché du travail dynamique, culminant par un pic migratoire vers 1975. La décennie 1980 marque un retournement progressif, sous l'effet des politiques d'ajustement structurel.
+
+Paradoxalement, malgré l'adoption d'une loi migratoire stricte en 1990, le pays enregistre son plus grand pic historique d'entrées. Ce phénomène s'explique moins par l'attractivité économique que par les conflits armés dans les pays voisins (Libéria, Sierra Leone...) générant un afflux de réfugiés, renforcé par le regroupement familial des primo-arrivants.
+
+La période 2000-2015 est marquée par un effondrement brutal du flux migratoire devenant largement négatif, atteignant son creux historique vers 2013, en lien direct avec l'instabilité politique et les crises électorales successives. Enfin, une stabilisation fragile s'amorce à partir de 2015, temporairement freinée par la crise Covid-19 en 2020 qui a globalement ralenti les flux migratoires mondiaux.
+
+#test de stationnarité : ADF
+
+```{r}
+
+donnee_ts <- as.data.frame(donnee_ts)
+adf.test(donnee_ts$MigrationNette)
+```
+
+vu la tendance et le drift de notre serie , le test de ADF sera de type 3 ,
+
+Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement supérieures à 0.05
+
+## ##differentiation de la serie migrations
+
+```{r}
+#on creer un autre instance car avec la differentiation on aura une ligne de moins
+#l'introduire directement das e dataframe creera un petit probleme
+
+MigrationNette_diff1 <- diff(donnee_ts$MigrationNette)
+
+
+##visualisation
+# Créer le dataframe pour la série différenciée
+df_diff <- data.frame(
+  annee = 1966:2023,
+  migration_diff = as.numeric(MigrationNette_diff1)
+)
+
+library(ggplot2)
+
+# Graphique optimisé
+ggplot(df_diff, aes(x = annee, y = migration_diff)) +
+  # 1. Thème minimaliste professionnel
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(), 
+    axis.line.x = element_line(color = "#333333"),
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
+    plot.subtitle = element_text(color = "grey40", size = 10),
+    axis.text.x = element_text(angle = 0) # On garde horizontal pour la lisibilité
+  ) +
+  
+  # 2. Échelles : Saut de 5 ans sur l'axe X
+  scale_x_continuous(breaks = seq(1965, 2025, by = 5)) +
+  
+  # 3. Lignes de référence
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
+  geom_hline(yintercept = moyenne, color = "#d35400", linetype = "dashed", linewidth = 0.6) +
+  
+  # 4. Données avec zone d'ombre légère
+  geom_area(fill = "#2980b9", alpha = 0.1) +
+  geom_line(color = "#2980b9", linewidth = 0.9) +
+  
+  # 5. Étiquette de moyenne 
+  annotate("label", x = 1965, y = moyenne, 
+           label = paste("m:", round(moyenne, 4)),
+           fill = "white", color = "#d35400", size = 3, 
+           fontface = "bold") +
+  
+  # 6. Labels
+  labs(
+    title = "Analyse de la stationnarité : Migration Nette (ΔY)",
+    subtitle = "Série différenciée (1966-2023) · Visualisation des chocs structurels",
+    x = "Année",
+    y = "Variation (millions)",
+    caption = paste0("Écart-type global : ", round(sd(df_diff$migration_diff), 4))
+  )
+
+
+adf.test(MigrationNette_diff1)
+
+```
+
+le test d'ADF confirme la sationnarité de la premiere difference
+
+en effet notre serie est de type 2 avec une p-value inferieure a 0,016 pour des retard allant jusqu'a 3. les pics de 2000 ,2010 et 2015 ainsi que leur impact seront examines un peu plus en detail apres
