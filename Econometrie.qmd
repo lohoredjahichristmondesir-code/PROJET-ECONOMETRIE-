@@ -33,15 +33,14 @@ library(readxl)    # fichier excel
 library(ggplot2)
 library(forecast)
 
-Sys.setlocale("LC_ALL", "French")
-
+Sys.setlocale("LC_ALL", "French_France.UTF-8")
 ```
 
 ##1-2 importation des donnees et reconversion
 
 ```{r}
 #importation des donnee
-donnee <- read_excel("C:\\causaliteVar.xlsx")
+donnee <- read_excel("C:\\Users\\MONDESIR\\Desktop\\causalité et var_dataset.xlsx")
 donnee <- data.frame(donnee)
 colnames(donnee) <- c("annee",
                       "PIB_reel",
@@ -149,13 +148,13 @@ adf.test(donnee_ts$MigrationNette)
 
 vu la tendance et le drift de notre serie , le test de ADF sera de type 3 ,
 
-Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement supérieures à 0.05
+Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement  supérieures au seuil 0.01, 0.05 et 0.1 
 
 ## ##differentiation de la serie migrations
 
 ```{r}
 #on creer un autre instance car avec la differentiation on aura une ligne de moins
-#l'introduire directement das e dataframe creera un petit probleme
+#l'introduire directement des  dataframe creera un petit probleme
 
 MigrationNette_diff1 <- diff(donnee_ts$MigrationNette)
 
@@ -204,3 +203,145 @@ adf.test(MigrationNette_diff1)
 ```
 
 La série de la Migration Nette en niveaux présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF** rejette l'hypothèse de racine unitaire avec une p-value très significative (P inferieur pratiquement a 0,01) pour les différents types de modèles et de retards. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1), toutefois** dans le type 3 du test ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
+
+
+
+#teste de stationarite pour la colonne investissement
+```{r}
+adf.test(donnee_ts$InvestissementNiveau_Log)
+```
+vu la tendance et le drift de notre serie , le test de ADF sera de type 3 ,
+
+Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement  supérieures au seuil 0.01, 0.05 et 0.1 
+
+
+
+
+
+
+
+## ##differentiation de la serie migrations
+```{r}
+#on creer un autre instance car avec la differentiation on aura une ligne de moins
+#l'introduire directement des  dataframe creera un petit probleme
+
+Investissement_diff1 <- diff(donnee_ts$InvestissementNiveau_Log)
+
+
+##visualisation
+# Créer le dataframe pour la série différenciée
+df_diff1 <- data.frame(
+  annee = 1966:2023,
+  Investissement_diff = as.numeric(Investissement_diff1)
+)
+
+
+# Graphique optimisé avec grilles et années verticales
+ggplot(df_diff1, aes(x = annee, y = Investissement_diff)) +
+  # 1. Thème et activation des grilles
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(color = "grey90"), # Affiche la grille verticale
+    axis.line.x = element_line(color = "#333333"),
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
+    plot.subtitle = element_text(color = "grey40", size = 10),
+    # 2. Rotation des années à 90 degrés
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1) 
+  ) +
+  
+  # 3. Échelles : Un saut tous les 2 ans pour profiter de la lecture verticale
+  scale_x_continuous(breaks = seq(1966, 2024, by = 2)) +
+  
+  # 4. Lignes de référence et données
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
+  geom_area(fill = "#2980b9", alpha = 0.1) +
+  geom_line(color = "#2980b9", linewidth = 0.9) +
+  
+  labs(
+    title = "Analyse de la stationnarité : Investissement (ΔY)",
+    subtitle = "Série différenciée (1966-2023) · Visualisation des chocs structurels",
+    x = "Année",
+    y = "Variation_LOG",
+    caption = paste0("Écart-type global : ", round(sd(df_diff1$Investissement_diff), 4))
+  )
+
+adf.test(Investissement_diff1)
+
+```
+La série d Investissement présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF** rejette l'hypothèse de racine unitaire avec une p-value  significative (P-vlue inferieur a 0,1) pour les différents types de modèles et de retards. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1), toutefois** dans le type 3 du test ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
+
+
+
+
+
+
+# Teste de stationnarite de PIB
+```{r}
+adf.test(donnee_ts$PIB_reel_Log)
+```
+vu la tendance et le drift de notre serie , le test de ADF sera de type 3 ,
+
+Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement  supérieures au seuil 0.01, 0.05 et 0.1 
+
+
+
+```{r}
+#on creer un autre instance car avec la differentiation on aura une ligne de moins
+#l'introduire directement des  dataframe creera un petit probleme
+
+PIB_diff1 <- diff(donnee_ts$InvestissementNiveau_Log)
+
+
+##visualisation
+# Créer le dataframe pour la série différenciée
+df_diff2 <- data.frame(
+  annee = 1966:2023,
+  PIB_diff = as.numeric(PIB_diff1)
+)
+
+
+# Graphique optimisé avec grilles et années verticales
+ggplot(df_diff2, aes(x = annee, y = PIB_diff)) +
+  # 1. Thème et activation des grilles
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(color = "grey90"), # Affiche la grille verticale
+    axis.line.x = element_line(color = "#333333"),
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
+    plot.subtitle = element_text(color = "grey40", size = 10),
+    # 2. Rotation des années à 90 degrés
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1) 
+  ) +
+  
+  # 3. Échelles : Un saut tous les 2 ans pour profiter de la lecture verticale
+  scale_x_continuous(breaks = seq(1966, 2024, by = 2)) +
+  
+  # 4. Lignes de référence et données
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
+  geom_area(fill = "#2980b9", alpha = 0.1) +
+  geom_line(color = "#2980b9", linewidth = 0.9) +
+  
+  labs(
+    title = "Analyse de la stationnarité : PIB (ΔY)",
+    subtitle = "Série différenciée (1966-2023) · Visualisation des chocs structurels",
+    x = "Année",
+    y = "PIB_LOG",
+    caption = paste0("Écart-type global : ", round(sd(df_diff2$PIB_diff), 4))
+  )
+
+adf.test(PIB_diff1)
+
+```
+La série du PIB en niveaux présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF** rejette l'hypothèse de racine unitaire avec une p-value  significative (P-value inferieur a 0,1) pour les différents types de modèles et de retards. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1), toutefois** dans le type 3 du test ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
+
+
+
+
+```{r}
+```
+
+
+```{r}
+```
