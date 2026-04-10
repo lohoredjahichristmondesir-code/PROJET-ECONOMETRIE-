@@ -457,6 +457,82 @@ View(donnee_diff_ts)
 #visualisation
 
 ```{r}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+# Préparer les données en format long
+donnee_long <- donnee %>%
+  select(annee, PIB_reel, InvestissementNiveau, MigrationNette) %>%
+  pivot_longer(cols = -annee, 
+               names_to = "Variable", 
+               values_to = "Valeur")
+
+# Graphique
+ggplot(donnee_long, aes(x = annee, y = Valeur, color = Variable)) +
+  geom_line(size = 1) +
+  facet_wrap(~ Variable, scales = "free_y", ncol = 1) +
+  labs(title = "Évolution des variables dans le temps",
+       x = "Année",
+       y = "Valeur") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+Naturellement  les courbes montrent la non stationariter des variables  etudier précédemment. L'intérêt  du test de cointegration de Johansson  est de traduit dans un premier temps  un model de pertinance  mettant en
+evidence l évolution  de chaque variable puis dans un second temps évaluer la distance  entre  c est deux évolutions. Si les distances entre évolution est casi  constante(les variables sont cointégré), plus besoins
+ d un modèle  VAR pour étudier la relation entre variable  on fera usage d un VECM (MODÈLE VECTORIEL DE CORRÉLATION D ERREUR). Dans le cas contraire  il sera plus adéquat  de faire  un VAR.
+ Ansi donc on peut deja faire l hypothèse  de non cointegration  en regardant l allure des courbes des différentes variables .
+ 
+ 
+ 
+
+# teste 
+```{r}
+# Étape 1 - Créer la série temporelle
+donnee_ts <- ts(donnee[, c("MigrationNette", 
+                            "InvestissementNiveau_Log", 
+                            "PIB_reel_Log")], 
+                start = 1965, 
+                frequency = 1)
+
+# Étape 2 - Choisir le nombre de retards
+library(vars)
+lag_select <- VARselect(donnee_ts, lag.max = 5, type = "const")
+lag_select$selection
+
+# Étape 3 - Test de Johansen
+library(urca)
+johansen_test <- ca.jo(donnee_ts, 
+                        type = "trace", 
+                        ecdet = "const", 
+                        K = 2)        # remplace 2 par le retard optimal trouvé
+summary(johansen_test)
+
+```
+
+On remarque dans un premier temp que il un conflit ou divergence au niveau du choix de retard  dans ces mesur on vas préfère  le SC aussi appelé  BIC parcequ il est connu pour est strict c est a dire qu il explique mieux les données avec le minimum de paramètres nécessaires. Ainsi le nombre de retards tolerer sera de 1.
+
+<<on a les différents relation a long terme entre variable qui ont permis de vérifier  les hypothese de cointegration>>
+
+concraitement  on remarque que pour l hypotheses H0 qui stipule  qu il n y pas de cointegration (r=0) n est pas rejeter en considerant  les trois seuil  qui cofirme notre hypotheses de non cointegration. On conclut qu il est donc legitime d ituliser le model VAR
 
 
+
+##--Estimation du modele VAR
+```{r}
+var.m <- VAR(donnee_diff_ts, p = 1, type = "const", season = NULL, exogen = NULL, lag.max = NULL, ic = "SC")
+summary(var.m)
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
 ```
