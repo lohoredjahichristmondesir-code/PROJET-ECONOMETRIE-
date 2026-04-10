@@ -8,11 +8,11 @@ output:
   pdf_document: default
 ---
 
-## 1-Description du projet
+# 1-Description du projet
 
 Le projet consiste à réaliser une étude économétrique pour comprendre comment la migration, l’investissement et la croissance économique s’influencent mutuellement en Côte d’Ivoire sur les 60 dernières années (1965–2024). En suivant la méthode de Yaya Keho, ce projet mobilise les outils avancés des séries temporelles multivariées, et notamment le modèle VAR (Vecteur Autorégressif), qui constitue le cœur analytique de l’étude.
 
-##1-1 chargement des packages
+## 1-1 chargement des packages
 
 ```{r}
 #chargement des packages
@@ -22,7 +22,7 @@ Le projet consiste à réaliser une étude économétrique pour comprendre comme
                  #  "vars",     # Modélisation VAR (cœur de l'analyse)
                  #  "aTSA"))    # Tests ADF automatiques (3 spécifications d'un coup)
 #install.packages("forecast")  # pour convertir ts en dataframe
-
+#install.packages('ggfortify')
 # Chargement des packages (à faire à chaque session)
 library(tseries)  # Activation des tests de stationnarité de base
 library(urca)     # Activation des tests de racine unitaire avancés
@@ -33,14 +33,15 @@ library(readxl)    # fichier excel
 library(ggplot2)
 library(forecast)
 
+library(ggfortify)
 Sys.setlocale("LC_ALL", "French_France.UTF-8")
 ```
 
-##1-2 importation des donnees et reconversion
+## 1-2 importation des donnees et reconversion
 
 ```{r}
 #importation des donnee
-donnee <- read_excel("C:\\Users\\MONDESIR\\Desktop\\causalité et var_dataset.xlsx")
+donnee <- read_excel("C:\\causaliteVar.xlsx")
 donnee <- data.frame(donnee)
 colnames(donnee) <- c("annee",
                       "PIB_reel",
@@ -50,7 +51,7 @@ View(donnee)
 ```
 
 ```{r}
-#passons a une normalisation : les migrations sont en miliers , conversions en millions 
+#les migrations sont en miliers , conversions en millions 
 
 donnee$MigrationNette <- donnee$MigrationNette/1000
 
@@ -61,6 +62,8 @@ donnee$PIB_reel_Log <- log(donnee$PIB_reel)
 donnee_ts <- ts(donnee[, -c(1,2,3)], start = 1965, frequency = 1)
 View(donnee_ts)
 ```
+
+## 1-3 verifications des valeurs manquante
 
 ```{r}
 #1-verification des valeurs manquantes et de la structure des donnees
@@ -98,14 +101,18 @@ analyser_structure <- function(df) {
 analyser_structure(donnee_ts)
 ```
 
-##2- test de stationnarite
+# 2-Visualisation et Test de Stationnarité
 
-#cas des migrations
+## A-  cas des migrations
+
+###  #visualisation
 
 ```{r}
 class(donnee_ts)
-# MIGRATION en valeur brute
 library(scales) # Nécessaire pour label_number()
+
+# Migration nette en valeur brute
+
 autoplot(donnee_ts[, "MigrationNette"]) +
   # Ligne de référence à zéro (fondamental pour la migration)
   geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.5) +
@@ -126,31 +133,34 @@ autoplot(donnee_ts[, "MigrationNette"]) +
   )
 ```
 
-##2.1 interpretations
+### \# interpretations
 
 Bien avant tout il est interressant de noter visuellement la non stationarité du flux migratoire pour les raisons suivantes :
 
 La moyenne change au fil du temps (fenetre 2010-2015 vs 1975-1980) - La variance change (grande volatilité autour de 2010-2015)
 
-\- Il y a des tendances et ruptures structurelles visiblesLa migration nette en Côte d'Ivoire reflète fidèlement les grands cycles économiques et politiques du pays. Durant le miracle ivoirien (1960-1980), le pays exerce une forte attractivité portée par le boom agricole (café, cacao), l'urbanisation rapide d'Abidjan et un marché du travail dynamique, culminant par un pic migratoire vers 1975. La décennie 1980 marque un retournement progressif, sous l'effet des politiques d'ajustement structurel.
+\- Il y a des tendances et ruptures structurelles visibles ,La migration nette en Côte d'Ivoire reflète fidèlement les grands cycles économiques et politiques du pays. Durant le miracle ivoirien (1960-1980), le pays exerce une forte attractivité portée par le boom agricole (café, cacao), l'urbanisation rapide d'Abidjan et un marché du travail dynamique, culminant par un pic migratoire vers 1975. La décennie 1980 marque un retournement progressif.
 
 Paradoxalement, malgré l'adoption d'une loi migratoire stricte en 1990, le pays enregistre son plus grand pic historique d'entrées. Ce phénomène s'explique moins par l'attractivité économique que par les conflits armés dans les pays voisins (Libéria, Sierra Leone...) générant un afflux de réfugiés, renforcé par le regroupement familial des primo-arrivants.
 
-La période 2000-2015 est marquée par un effondrement brutal du flux migratoire devenant largement négatif, atteignant son creux historique vers 2013, en lien direct avec l'instabilité politique et les crises électorales successives. Enfin, une stabilisation fragile s'amorce à partir de 2015, temporairement freinée par la crise Covid-19 en 2020 qui a globalement ralenti les flux migratoires mondiaux.
+La période 2000-2015 est marquée par un effondrement brutal du flux migratoire devenant largement négatif, atteignant son creux historique vers 2013, du probablement a l'instabilité politique et les crises électorales successives minant cette periode.mais des tests supplementaires nous permettra d'en savoir plus dans la suite.Enfin, une stabilisation fragile s'amorce à partir de 2015, temporairement freinée par la crise Covid-19 en 2020 qui a globalement ralenti les flux migratoires mondiaux.
 
-#test de stationnarité : ADF
+### #test de stationnarité : ADF
 
 ```{r}
-
 donnee_ts <- as.data.frame(donnee_ts)
 adf.test(donnee_ts$MigrationNette)
+
+
 ```
 
-vu la tendance et le drift de notre serie , le test de ADF sera de type 3 ,
+l'allure de la serie de migrations nous conduit precisement vers le type 3 dans la sortie de logiciel,
 
-Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement  supérieures au seuil 0.01, 0.05 et 0.1 
+Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement supérieures au seuil 0.01, 0.05 et 0.1 ce qui signifie que son niveau dépend fortement du temps et de son passé.
 
-## ##differentiation de la serie migrations
+## A-1 differentiation de la serie migrations
+
+### #differentiation 
 
 ```{r}
 #on creer un autre instance car avec la differentiation on aura une ligne de moins
@@ -159,13 +169,18 @@ Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stat
 MigrationNette_diff1 <- diff(donnee_ts$MigrationNette)
 
 
+```
+
+### #visualisation + TEST
+
+```{r}
+
 ##visualisation
 # Créer le dataframe pour la série différenciée
 df_diff <- data.frame(
   annee = 1966:2023,
   migration_diff = as.numeric(MigrationNette_diff1)
 )
-
 
 # Graphique optimisé avec grilles et années verticales
 ggplot(df_diff, aes(x = annee, y = migration_diff)) +
@@ -202,97 +217,78 @@ adf.test(MigrationNette_diff1)
 
 ```
 
-La série de la Migration Nette en niveaux présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF** rejette l'hypothèse de racine unitaire avec une p-value très significative (P inferieur pratiquement a 0,01) pour les différents types de modèles et de retards. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1), toutefois** dans le type 3 du test ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
+La série de la Migration Nette en niveaux présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF avec le modele du type 2** rejette l'hypothèse de racine unitaire avec une p-value très significative (P inferieur pratiquement a 0,01) a tous les seuils independemment du nombre retards ajouté pour corriger l'autoccoralation des residus. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1),**
 
+**toutefois** dans le type 3 du test ou l'on peut avoir une idee d'une probable rupture structurelle ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact au seuil de 1% , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
 
+## B- Cas du PIB 
 
-#teste de stationarite pour la colonne investissement
+### #visualisation
+
 ```{r}
-adf.test(donnee_ts$InvestissementNiveau_Log)
-```
-vu la tendance et le drift de notre serie , le test de ADF sera de type 3 ,
+donnee_ts <- ts(donnee_ts, start = 1965, frequency = 1) # il faut penser apres a le ramener en ts
 
-Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement  supérieures au seuil 0.01, 0.05 et 0.1 
+# 1. Calcul de la moyenne sur les 60 ans 
+moyenne_pib <- mean(donnee_ts[, "PIB_reel_Log"])
 
-
-
-
-
-
-
-## ##differentiation de la serie migrations
-```{r}
-#on creer un autre instance car avec la differentiation on aura une ligne de moins
-#l'introduire directement des  dataframe creera un petit probleme
-
-Investissement_diff1 <- diff(donnee_ts$InvestissementNiveau_Log)
-
-
-##visualisation
-# Créer le dataframe pour la série différenciée
-df_diff1 <- data.frame(
-  annee = 1966:2023,
-  Investissement_diff = as.numeric(Investissement_diff1)
-)
-
-
-# Graphique optimisé avec grilles et années verticales
-ggplot(df_diff1, aes(x = annee, y = Investissement_diff)) +
-  # 1. Thème et activation des grilles
-  theme_minimal(base_size = 12) +
-  theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_line(color = "grey90"), # Affiche la grille verticale
-    axis.line.x = element_line(color = "#333333"),
-    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
-    plot.subtitle = element_text(color = "grey40", size = 10),
-    # 2. Rotation des années à 90 degrés
-    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1) 
-  ) +
+# 2. Création du graphique
+autoplot(donnee_ts[, "PIB_reel_Log"]) +
+  # Ligne de référence (moyenne historique)
+  geom_hline(yintercept = moyenne_pib, linetype = "dashed", color = "red", linewidth = 0.8) +
+  # Annotation pour expliquer la ligne
+  annotate("text", x = 1970, y = moyenne_pib + 0.15, 
+           label = "Moy_hist(60 ans)", 
+           color = "red", fontface = "italic", hjust = 0) +
+  # Configuration de l'axe X : saut de 5 ans
+  scale_x_continuous(breaks = seq(1965, 2024, by = 5)) +
   
-  # 3. Échelles : Un saut tous les 2 ans pour profiter de la lecture verticale
-  scale_x_continuous(breaks = seq(1966, 2024, by = 2)) +
-  
-  # 4. Lignes de référence et données
-  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
-  geom_area(fill = "#2980b9", alpha = 0.1) +
-  geom_line(color = "#2980b9", linewidth = 0.9) +
-  
+  # Habillage du graphique
   labs(
-    title = "Analyse de la stationnarité : Investissement (ΔY)",
-    subtitle = "Série différenciée (1966-2023) · Visualisation des chocs structurels",
-    x = "Année",
-    y = "Variation_LOG",
-    caption = paste0("Écart-type global : ", round(sd(df_diff1$Investissement_diff), 4))
+    title = "Évolution du PIB_REEL (Log)",
+    subtitle = "Côte d'Ivoire (1965-2024)",
+    y = "Log du PIB_REEL",
+    x = "Année"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    panel.grid.minor = element_blank()
   )
 
-adf.test(Investissement_diff1)
+
 
 ```
-La série d Investissement présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF** rejette l'hypothèse de racine unitaire avec une p-value  significative (P-vlue inferieur a 0,1) pour les différents types de modèles et de retards. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1), toutefois** dans le type 3 du test ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
 
+### #interpretation( a terminer)
 
+( a faire ! , toutefois on remarque la serie est non stationnaire...elle s'eloigne de sa moyenne historique... sa moyenne n'est pas constante ) l'allure nous amene a considerer une sortie de logiciel de type trois dans le test ADF
 
+### #test de stationnarité
 
-
-
-# Teste de stationnarite de PIB
 ```{r}
+donnee_ts <- as.data.frame(donnee_ts)
 adf.test(donnee_ts$PIB_reel_Log)
+
+
 ```
-vu la tendance et le drift de notre serie , le test de ADF sera de type 3 ,
 
-Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement  supérieures au seuil 0.01, 0.05 et 0.1 
+Le modèle correct à regarder ici est le **Type 3 : with drift and trend** (avec constante et tendance) car Les types 1 et 2 sont ici inappropriés : ils ignorent la tendance évidente que l'on voit à l'œil nu.**Les p-values** sont toutes très élevées (entre **0.640 et 0.966**).Comme elles sont largement supérieures au seuil de **0.01**, 0,05 on **ne peut pas rejeter l'hypothèse nulle** de racine unitaire.La série du Log PIB est **non-stationnaire**. ce qui signifie que son niveau dépend fortement du temps et de son passé.
 
+## B-1  Differentiation du PIB
 
+### #differentiation
 
 ```{r}
 #on creer un autre instance car avec la differentiation on aura une ligne de moins
 #l'introduire directement des  dataframe creera un petit probleme
 
-PIB_diff1 <- diff(donnee_ts$InvestissementNiveau_Log)
+PIB_diff1 <- diff(donnee_ts$PIB_reel_Log)
 
+```
 
+### #visualisation +test
+
+```{r}
 ##visualisation
 # Créer le dataframe pour la série différenciée
 df_diff2 <- data.frame(
@@ -325,23 +321,142 @@ ggplot(df_diff2, aes(x = annee, y = PIB_diff)) +
   
   labs(
     title = "Analyse de la stationnarité : PIB (ΔY)",
-    subtitle = "Série différenciée (1966-2023) · Visualisation des chocs structurels",
+    subtitle = "Série différenciée (1966-2023)",
     x = "Année",
     y = "PIB_LOG",
     caption = paste0("Écart-type global : ", round(sd(df_diff2$PIB_diff), 4))
   )
 
 adf.test(PIB_diff1)
-
-```
-La série du PIB en niveaux présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF** rejette l'hypothèse de racine unitaire avec une p-value  significative (P-value inferieur a 0,1) pour les différents types de modèles et de retards. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1), toutefois** dans le type 3 du test ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
-
-
-
-
-```{r}
 ```
 
+#interpretation (a faire) :
+
+pour cette partie on prend le modele de type 2 , notre echantillons etant petit on prend le critere BIC qui nous amene a choisir le plus petit lag (0 ou 1) ,la p value est significative donc on rejete l'hypothe de non stationnarité ( ameliore l(interpretation)
+
+## C-cas de l'investissement 
+
+### #visualisation 
 
 ```{r}
+donnee_ts <- ts(donnee_ts, start = 1965, frequency = 1) # il faut penser apres a le ramener en ts
+
+# 1. Calcul de la moyenne sur les 60 ans 
+moyenne_invest <- mean(donnee_ts[, "InvestissementNiveau_Log"])
+
+# 2. Création du graphique
+autoplot(donnee_ts[, "InvestissementNiveau_Log"]) +
+  # Ligne de référence (moyenne historique)
+  geom_hline(yintercept = moyenne_invest, linetype = "dashed", color = "red", linewidth = 0.8) +
+  # Annotation pour expliquer la ligne
+  annotate("text", x = 1965, y = moyenne_invest + 0.15, 
+           label = "Moy_hist(60 ans)", 
+           color = "red", fontface = "italic", hjust = 0) +
+  # Configuration de l'axe X : saut de 5 ans
+  scale_x_continuous(breaks = seq(1965, 2024, by = 5)) +
+  
+  # Habillage du graphique
+  labs(
+    title = "Évolution du Taux d'Investissement en million (Log)",
+    subtitle = "Côte d'Ivoire (1965-2024)",
+    y = "Log de L'investissement",
+    x = "Année"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+### #interpretation( a faire comme le cas de la migration )
+
+### #test de stationnarite
+
+```{r}
+donnee_ts <- as.data.frame(donnee_ts)
+adf.test(donnee_ts$InvestissementNiveau_Log)
+
+```
+
+ici tu regardes le modele type trois pour interpreter , deja tu pourras remarquer que c'est pas stationnaire comme on peut le voir deja sur le graphe , inspire toi de celui du PIb sans faire de copie coller
+
+## C-1 differenciation
+
+### #differenciation
+
+```{r}
+#on creer un autre instance car avec la differentiation on aura une ligne de moins
+#l'introduire directement des  dataframe creera un petit probleme
+
+Investissement_diff1<- diff(donnee_ts$InvestissementNiveau_Log)
+```
+
+### #visualisation +test
+
+```{r}
+##visualisation
+# Créer le dataframe pour la série différenciée
+df_diff1 <- data.frame(
+  annee = 1966:2023,
+  Investissement_diff = as.numeric(Investissement_diff1)
+)
+
+
+# Graphique optimisé avec grilles et années verticales
+ggplot(df_diff1, aes(x = annee, y = Investissement_diff)) +
+  # 1. Thème et activation des grilles
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(color = "grey90"), # Affiche la grille verticale
+    axis.line.x = element_line(color = "#333333"),
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
+    plot.subtitle = element_text(color = "grey40", size = 10),
+    # 2. Rotation des années à 90 degrés
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1) 
+  ) +
+  
+  # 3. Échelles : Un saut tous les 2 ans pour profiter de la lecture verticale
+  scale_x_continuous(breaks = seq(1966, 2024, by = 2)) +
+  
+  # 4. Lignes de référence et données
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
+  geom_area(fill = "#2980b9", alpha = 0.1) +
+  geom_line(color = "#2980b9", linewidth = 0.9) +
+  
+  labs(
+    title = "Analyse de la stationnarité : Investissement (ΔY)",
+    subtitle = "Série différenciée (1966-2023) ",
+    x = "Année",
+    y = "Variation_LOG",
+    caption = paste0("Écart-type global : ", round(sd(df_diff1$Investissement_diff), 4))
+  )
+
+adf.test(Investissement_diff1)
+
+```
+
+Après passage en **première différence** , le test **ADF avec le modele de type 2** rejette l'hypothèse de racine unitaire avec une p-value significative (P-vlue inferieur a 0,1) pour les retard de 0 a 1 . Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1),**
+
+dans le modele de type 3 du test ; on peut constater une p-value un au dessus 0,05 avec un retard de 3, cela attire un peu notre attention sur la faible variabilité la variance un peu en des points particuliers.
+
+## 3 rassablement des donnees differenciées au cas ou
+
+toutes nos series sont d'ordre d'integralité I(1) ce tableaux ci-dessous rassemble les données differenciées en serie ts
+
+```{r}
+donnee_diff <- data.frame(MigrationNette_diff1,PIB_diff1,Investissement_diff1)
+donnee_diff_ts <-ts(donnee_diff, start = 1966, frequency = 1)  #quand differencie on commence par l'annee qui suit
+View(donnee_diff_ts)
+```
+
+## 4-Test de cointegration  
+
+#visualisation
+
+```{r}
+
+
 ```
