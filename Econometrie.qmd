@@ -652,4 +652,4 @@ Bien que le modèle soit stable, on observe des **décrochages brutaux** (pics) 
 
     Ces événements sont des **valeurs aberrantes** (outliers). Ils justifient l'ajout de **variables dummies** pour ces dates afin de valider le modèle.
 
-##cas du PIB
+### #cas du PIB 
