@@ -32,7 +32,8 @@ library(readxl)    # fichier excel
 
 library(ggplot2)
 library(forecast)
-
+library(tidyr)
+library(dplyr)
 library(ggfortify)
 Sys.setlocale("LC_ALL", "French_France.UTF-8")
 ```
@@ -103,9 +104,9 @@ analyser_structure(donnee_ts)
 
 # 2-Visualisation et Test de Stationnarité
 
-## A-  cas des migrations
+## A- cas des migrations
 
-###  #visualisation
+### #visualisation
 
 ```{r}
 class(donnee_ts)
@@ -160,7 +161,7 @@ Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stat
 
 ## A-1 differentiation de la serie migrations
 
-### #differentiation 
+### #differentiation
 
 ```{r}
 #on creer un autre instance car avec la differentiation on aura une ligne de moins
@@ -221,7 +222,7 @@ La série de la Migration Nette en niveaux présentait une non-stationnarité fl
 
 **toutefois** dans le type 3 du test ou l'on peut avoir une idee d'une probable rupture structurelle ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact au seuil de 1% , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
 
-## B- Cas du PIB 
+## B- Cas du PIB
 
 ### #visualisation
 
@@ -274,7 +275,7 @@ adf.test(donnee_ts$PIB_reel_Log)
 
 Le modèle correct à regarder ici est le **Type 3 : with drift and trend** (avec constante et tendance) car Les types 1 et 2 sont ici inappropriés : ils ignorent la tendance évidente que l'on voit à l'œil nu.**Les p-values** sont toutes très élevées (entre **0.640 et 0.966**).Comme elles sont largement supérieures au seuil de **0.01**, 0,05 on **ne peut pas rejeter l'hypothèse nulle** de racine unitaire.La série du Log PIB est **non-stationnaire**. ce qui signifie que son niveau dépend fortement du temps et de son passé.
 
-## B-1  Differentiation du PIB
+## B-1 Differentiation du PIB
 
 ### #differentiation
 
@@ -334,9 +335,9 @@ adf.test(PIB_diff1)
 
 pour cette partie on prend le modele de type 2 , notre echantillons etant petit on prend le critere BIC qui nous amene a choisir le plus petit lag (0 ou 1) ,la p value est significative donc on rejete l'hypothe de non stationnarité ( ameliore l(interpretation)
 
-## C-cas de l'investissement 
+## C-cas de l'investissement
 
-### #visualisation 
+### #visualisation
 
 ```{r}
 donnee_ts <- ts(donnee_ts, start = 1965, frequency = 1) # il faut penser apres a le ramener en ts
@@ -452,18 +453,15 @@ donnee_diff_ts <-ts(donnee_diff, start = 1966, frequency = 1)  #quand differenci
 View(donnee_diff_ts)
 ```
 
-## 4-Test de cointegration  
+## 4-Test de cointegration
 
 #visualisation
 
 ```{r}
-library(ggplot2)
-library(tidyr)
-library(dplyr)
 
 # Préparer les données en format long
 donnee_long <- donnee %>%
-  select(annee, PIB_reel, InvestissementNiveau, MigrationNette) %>%
+  select(annee, PIB_reel_Log, InvestissementNiveau_Log, MigrationNette) %>%
   pivot_longer(cols = -annee, 
                names_to = "Variable", 
                values_to = "Valeur")
@@ -479,17 +477,13 @@ ggplot(donnee_long, aes(x = annee, y = Valeur, color = Variable)) +
   theme(legend.position = "none")
 
 ```
-Naturellement  les courbes montrent la non stationariter des variables  etudier précédemment. L'intérêt  du test de cointegration de Johansson  est de traduit dans un premier temps  un model de pertinance  mettant en
-evidence l évolution  de chaque variable puis dans un second temps évaluer la distance  entre  c est deux évolutions. Si les distances entre évolution est casi  constante(les variables sont cointégré), plus besoins
- d un modèle  VAR pour étudier la relation entre variable  on fera usage d un VECM (MODÈLE VECTORIEL DE CORRÉLATION D ERREUR). Dans le cas contraire  il sera plus adéquat  de faire  un VAR.
- Ansi donc on peut deja faire l hypothèse  de non cointegration  en regardant l allure des courbes des différentes variables .
- 
- 
- 
 
-# teste 
+Naturellement les courbes montrent la non stationariter des variables etudier précédemment. L'intérêt du test de cointegration de Johansson est de traduit dans un premier temps un model de pertinance mettant en evidence l évolution de chaque variable puis dans un second temps évaluer la distance entre ces deux évolutions( une relation d'equilibre a long terme). Si les distances entre évolution est quasi constante(les variables sont cointégré), plus besoins d un modèle VAR pour étudier la relation entre variable on fera usage d un VECM (MODÈLE VECTORIEL DE CORRÉLATION D ERREUR). Dans le cas contraire il sera plus adéquat de faire un VAR. Ansi donc on peut deja faire l hypothèse de non cointegration en regardant l allure des courbes des différentes variables .
+
+### #test de cointegration
+
 ```{r}
-# Étape 1 - Créer la série temporelle
+# Étape 1 - on ramene donnee en serie temp
 donnee_ts <- ts(donnee[, c("MigrationNette", 
                             "InvestissementNiveau_Log", 
                             "PIB_reel_Log")], 
@@ -497,42 +491,116 @@ donnee_ts <- ts(donnee[, c("MigrationNette",
                 frequency = 1)
 
 # Étape 2 - Choisir le nombre de retards
-library(vars)
-lag_select <- VARselect(donnee_ts, lag.max = 5, type = "const")
+
+lag_select <- VARselect(donnee_ts, lag.max = 7, type = "const")
 lag_select$selection
 
 # Étape 3 - Test de Johansen
-library(urca)
+
 johansen_test <- ca.jo(donnee_ts, 
                         type = "trace", 
                         ecdet = "const", 
-                        K = 2)        # remplace 2 par le retard optimal trouvé
+                        K = 1)        
 summary(johansen_test)
 
 ```
 
-On remarque dans un premier temp que il un conflit ou divergence au niveau du choix de retard  dans ces mesur on vas préfère  le SC aussi appelé  BIC parcequ il est connu pour est strict c est a dire qu il explique mieux les données avec le minimum de paramètres nécessaires. Ainsi le nombre de retards tolerer sera de 1.
+tous les criteres converges vers le choix optimaux qui est de 1, toutefois pour un echantillon plus petit , le critere de BIC est le meilleur parcequ il est connu pour est strict c'est a dire qu il explique mieux les données avec le minimum de paramètres nécessaires. Ainsi le nombre de retards tolerer sera de 1.
 
-<<on a les différents relation a long terme entre variable qui ont permis de vérifier  les hypothese de cointegration>>
+\<<on a les différents relation a long terme entre variable qui ont permis de vérifier  les hypothese de cointegration>\>
 
-concraitement  on remarque que pour l hypotheses H0 qui stipule  qu il n y pas de cointegration (r=0) n est pas rejeter en considerant  les trois seuil  qui cofirme notre hypotheses de non cointegration. On conclut qu il est donc legitime d ituliser le model VAR
+comme s'y attendait l'hypothese de non cointegration se confirme. en effet a tous les seuils , l'hypothese nulle pour k =0 (ie H_0: r \<=0) se verifie , la statistique de test est inferieur a la valeur critique a tous les seuils , d'ou le non rejet de l'hypothese nulle.cela signifie qu'il n'existe aucune relation d'équilibre stable à long terme entre le PIB,Investissement, et la migration
 
+On conclut qu il est donc legitime d utiliser le model VAR classique
 
+## 5 Estimation du modele VAR
 
-##--Estimation du modele VAR
 ```{r}
-var.m <- VAR(donnee_diff_ts, p = 1, type = "const", season = NULL, exogen = NULL, lag.max = NULL, ic = "SC")
+var.m <- VAR(donnee_diff_ts, p = 1, type = "const")
 summary(var.m)
 ```
 
+### Modele 1
+
+$$
+\Delta \text{MigrationNette}_t = \alpha + \beta_1 \Delta \text{MigrationNette}_{t-1} + \beta_2 \Delta \text{Log(PIB)}_{t-1} + \beta_3 \Delta \text{Log(Investissement)}_{t-1} + \epsilon_t
+$$
+
+L’estimation de l’équation de la **Migration Nette** révèle une absence de relation statistique significative à court terme. Avec des **p-values** largement supérieures aux seuils usuels (0,60 pour la migration passée, 0,13 pour le PIB et 0,96 pour l’investissement), aucune de ces variables n’influence de manière fiable la migration nette à un retard de 1. Ce constat est confirmé par le R carré ajusté extrêmement faible (0,13 %), indiquant que la quasi-totalité de l'accrooissement de la migration en Côte d'Ivoire est dictée par des facteurs exogènes (crises socio-politiques, chocs structurels) non captés par le modèle (investissement ou PIB ni meme ces anciennes valeurs). Puisqu'il s'agit d'un système **VAR**, cette absence d'explication sur la migration n'empêche pas de vérifier si, à l'inverse, la migration influence significativement le **PIB** ou l'**Investissement** dans les autres équations du modèle.
+
+### Modele 2
+
+$$
+\Delta \text{Log(PIB)}_t = \alpha_2 + \gamma_1 \Delta \text{Log(PIB)}_{t-1} + \gamma_2 \Delta \text{MigrationNette}_{t-1} + \gamma_3 \Delta \text{Log(Investissement)}_{t-1} + \epsilon_{2,t}
+$$
+
+Contrairement à l'équation de la migration, l’estimation de la **variation du PIB** montre des relations statistiques significatives et une meilleure cohérence globale. Le modèle explique **20,23 %** de la variance de la variation du PIB, ce qui est satisfaisant pour un modèle en différences premières. le PIB passé influence positivement et significativement le PIB actuel au seuil de 5% et 10 % . la **constante significative** indique une tendance naturelle à la croissance, indépendamment des autres variables. En revanche, la migration nette et l'investissement n'apparaissent pas comme des déterminants significatifs à court terme ( p value pas significative).
+
+### Modele 3
+
+$$
+\Delta \text{Log(Investissement)}_t = \alpha_3 + \theta_1 \Delta \text{Log(Investissement)}_{t-1} + \theta_2 \Delta \text{Log(PIB)}_{t-1} + \theta_3 \Delta \text{MigrationNette}_{t-1} + \epsilon_{3,t}
+$$
+
+>  L'équation de l'investissement montre que ce dernier dispose d'une **croissance autonome positive** représentée par la constante $\alpha_3$. Cependant, un effet de **correction cyclique se presente** : le coefficient négatif de l'investissement passé indique qu'une accélération de l'investissement en (t-1) est statistiquement suivie d'un ralentissement en (t ).Le fait que le PIB et la migration ne soient pas significatifs confirme que l'investissement en Côte d'Ivoire ne répond pas directement aux fluctuations de la richesse nationale ou des flux migratoires, mais suit sa propre logique de cycle et de croissance structurelle.
+
+### 5-1 Test de Portmanteau
+
+Le test de Portmanteau est un test de diagnostic global qui vérifie la qualité de votre modèle VAR en examinant ses résidus.S'assurer que le modèle a capté toute l'information utile. Il vérifie si les erreurs (résidus) sont indépendantes les unes des autres.
 
 ```{r}
+
+# 2. le test de Portmanteau (type "PT.asymptotic")
+# 'lags.pt' définit le nombre de retards des résidus à tester (souvent 10 ou 12)
+test_residus <- serial.test(var.m, lags.pt = 10, type = "PT.asymptotic")
+
+# 3. Afficher le résultat
+print(test_residus)
+
 ```
 
+Avec une p-value de **0,90**, nous **échouons à rejeter l'hypothèse nulle** d'absence d'autocorrélation. Nous concluons donc que les résidus du modèle sont un bruit blanc, ce qui valide la qualité statistique de notre VAR.
+
+### 5-2 stabilité du modele 
+
+on verifie ici si le modele lui meme est stationnaire
 
 ```{r}
+# Affiche les valeurs propres (doivent être < 1)
+roots(var.m)
+
+##visualisation
+# Extraction des racines (valeurs propres)
+les_racines <- roots(var.m)
+
+# Création du cercle unité
+theta <- seq(0, 2*pi, length.out = 100)
+plot(cos(theta), sin(theta), type = "l", lty = 2, col = "red",
+     asp = 1, main = "Stabilité du modèle VAR : Cercle Unité",
+     xlab = "Partie Réelle", ylab = "Partie Imaginaire")
+abline(h = 0, v = 0, col = "gray")
+
+# Ajout des racines du modèle (on utilise 0 pour la partie imaginaire si réelles)
+points(les_racines, rep(0, length(les_racines)), pch = 19, col = "blue")
+
+
 ```
 
+Puisque toutes les racines (La force du lien entre hier et aujourd'hui) ont un module inférieur à 1 et proche de 0 ,cela indique que le modele est tres stable et stationnaire. tout choc sur l'une des variables (PIB, Migration ou Investissement) va s'estomper avec le temps. Le système finira toujours par revenir à sa moyenne de long terme.concretement cela veut dire que toute perturbation sur une variable (comme un choc migratoire) sera résorbée par le système au fil du temps, garantissant ainsi la validité de nos prévisions et de nos analyses.
+
+### 5-3 stabilité structurelle des coefficients du modeles 
+
+Le test **CUSUM** (Cumulative Sum of Residuals) est un test de **stabilité structurelle**. . il est la version dynamique du test de chow.
+
+Bien que notre modèle soit mathématiquement stationnaire (racines dans le cercle), Le test CUSUM permet de détecter d'éventuelles **ruptures structurelles**, c'est-à-dire des moments où les comportements économiques ont changé (par exemple, suite à la dévaluation du Franc CFA en 1994 ou aux crises de 2002 et 2011). Si une telle rupture est détectée, cela signifierait que les mêmes causes ne produisent plus les mêmes effets après la date de rupture.
 
 ```{r}
+# 1. Calcul du test de stabilité (méthode CUSUM des résidus récursifs)
+test_stabilite <- stability(var.m, type = "OLS-CUSUM")
+
+# apres je vais faire la visualisation de ce test
+
+
+
+
 ```
