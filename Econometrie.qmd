@@ -588,6 +588,10 @@ points(les_racines, rep(0, length(les_racines)), pch = 19, col = "blue")
 
 Puisque toutes les racines (La force du lien entre hier et aujourd'hui) ont un module inférieur à 1 et proche de 0 ,cela indique que le modele est tres stable et stationnaire. tout choc sur l'une des variables (PIB, Migration ou Investissement) va s'estomper avec le temps. Le système finira toujours par revenir à sa moyenne de long terme.concretement cela veut dire que toute perturbation sur une variable (comme un choc migratoire) sera résorbée par le système au fil du temps, garantissant ainsi la validité de nos prévisions et de nos analyses.
 
+```{r}
+##ici je vais refaire l'hypothese de normalités car le premier a montrer que nous avons oubliez de considerer les chocs structurels ,on va les identifiers d'abords puis refaire le test par la suite
+```
+
 ### 5-3 stabilité structurelle des coefficients du modeles 
 
 Le test **CUSUM** (Cumulative Sum of Residuals) est un test de **stabilité structurelle**. . il est la version dynamique du test de chow.
@@ -596,11 +600,56 @@ Bien que notre modèle soit mathématiquement stationnaire (racines dans le cerc
 
 ```{r}
 # 1. Calcul du test de stabilité (méthode CUSUM des résidus récursifs)
-test_stabilite <- stability(var.m, type = "OLS-CUSUM")
+library(strucchange)
 
-# apres je vais faire la visualisation de ce test
+# 1. Calculer le test
+stability_test <- stability(var.m, type = "OLS-CUSUM")
 
+# 1. Dates (1965-2023 moins les 2 premières car diff=1 et p=1)
+dates_modele <- 1967:2023
 
+# 2. On s'assure qu'un seul graphique s'affiche à la fois
+par(mfrow = c(1, 1), mar = c(6, 4, 3, 2))
+
+# 3. Boucle pour un affichage séparé
+noms_vars <- names(stability_test$stability)
+
+for(v in noms_vars) {
+  # Tracer le test pour la variable v
+  plot(stability_test$stability[[v]], 
+       main = paste("Stabilité CUSUM :", v), 
+       col = "darkblue", 
+       xaxt = "n", 
+       las = 1)
+  
+  # Ajouter les années à la verticale (8 dates repères)
+  at_points <- seq(0, 1, length.out = 10)
+  labels_ans <- round(seq(min(dates_modele), max(dates_modele), length.out = 10))
+  
+  # las = 2 pour la verticalité, cex.axis pour la taille
+  axis(1, at = at_points, labels = labels_ans, las = 2, cex.axis = 0.9)
+  
+  # Optionnel : ajoute une grille pour mieux lire les dates
+  grid(nx = NULL, ny = NULL, lty = 2, col = "gray")
+}
 
 
 ```
+
+### ##cas migrations
+
+Le test **OLS-CUSUM** confirme la **stabilité structurelle** du modèle, car la courbe reste à l'intérieur des bandes de confiance à 95 %. Cela signifie que les relations entre le PIB, l'Investissement et la Migration sont constantes sur le long terme (1967-2023).
+
+**Identification des chocs**
+
+Bien que le modèle soit stable, on observe des **décrochages brutaux** (pics) qui révèlent l'impact de crises ponctuelles :
+
+-   **1994-1998 :** Choc positif (période post-dévaluation du FCFA).
+
+-   **2002 :** Choc négatif suite au déclenchement de la crise politico-militaire.
+
+-   **2011 :** Choc négatif majeur lié à la crise post-électorale (point le plus bas).
+
+    Ces événements sont des **valeurs aberrantes** (outliers). Ils justifient l'ajout de **variables dummies** pour ces dates afin de valider le modèle.
+
+##cas du PIB
