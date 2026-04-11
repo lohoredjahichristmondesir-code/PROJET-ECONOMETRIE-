@@ -492,7 +492,7 @@ donnee_ts <- ts(donnee[, c("MigrationNette",
 
 # Étape 2 - Choisir le nombre de retards
 
-lag_select <- VARselect(donnee_ts, lag.max = 7, type = "const")
+lag_select <- VARselect(donnee_ts, lag.max = 8, type = "const")
 lag_select$selection
 
 # Étape 3 - Test de Johansen
@@ -500,7 +500,7 @@ lag_select$selection
 johansen_test <- ca.jo(donnee_ts, 
                         type = "trace", 
                         ecdet = "const", 
-                        K = 1)        
+                        K = 2)        
 summary(johansen_test)
 
 ```
@@ -523,7 +523,7 @@ summary(var.m)
 ### Modele 1
 
 $$
-\Delta \text{MigrationNette}_t = \alpha + \beta_1 \Delta \text{MigrationNette}_{t-1} + \beta_2 \Delta \text{Log(PIB)}_{t-1} + \beta_3 \Delta \text{Log(Investissement)}_{t-1} + \epsilon_t
+\Delta \text{MigrationNette}_t = -0.0075 + 0.0718 \, \Delta \text{MigrationNette}_{t-1} + 0.1597 \, \Delta \text{Log(PIB)}_{t-1} + 0.0005 \, \Delta \text{Log(Investissement)}_{t-1} + \epsilon_{1,t}
 $$
 
 L’estimation de l’équation de la **Migration Nette** révèle une absence de relation statistique significative à court terme. Avec des **p-values** largement supérieures aux seuils usuels (0,60 pour la migration passée, 0,13 pour le PIB et 0,96 pour l’investissement), aucune de ces variables n’influence de manière fiable la migration nette à un retard de 1. Ce constat est confirmé par le R carré ajusté extrêmement faible (0,13 %), indiquant que la quasi-totalité de l'accrooissement de la migration en Côte d'Ivoire est dictée par des facteurs exogènes (crises socio-politiques, chocs structurels) non captés par le modèle (investissement ou PIB ni meme ces anciennes valeurs). Puisqu'il s'agit d'un système **VAR**, cette absence d'explication sur la migration n'empêche pas de vérifier si, à l'inverse, la migration influence significativement le **PIB** ou l'**Investissement** dans les autres équations du modèle.
@@ -531,7 +531,7 @@ L’estimation de l’équation de la **Migration Nette** révèle une absence d
 ### Modele 2
 
 $$
-\Delta \text{Log(PIB)}_t = \alpha_2 + \gamma_1 \Delta \text{Log(PIB)}_{t-1} + \gamma_2 \Delta \text{MigrationNette}_{t-1} + \gamma_3 \Delta \text{Log(Investissement)}_{t-1} + \epsilon_{2,t}
+\Delta \text{Log(PIB)}_t = 0.0243^{**} + 0.405^{**}\Delta \text{Log(PIB)}_{t-1} + 0.210 \Delta \text{MigrationNette}_{t-1} + 0.011\Delta \text{Log(Investissement)}_{t-1} + \epsilon_{2,t}
 $$
 
 Contrairement à l'équation de la migration, l’estimation de la **variation du PIB** montre des relations statistiques significatives et une meilleure cohérence globale. Le modèle explique **20,23 %** de la variance de la variation du PIB, ce qui est satisfaisant pour un modèle en différences premières. le PIB passé influence positivement et significativement le PIB actuel au seuil de 5% et 10 % . la **constante significative** indique une tendance naturelle à la croissance, indépendamment des autres variables. En revanche, la migration nette et l'investissement n'apparaissent pas comme des déterminants significatifs à court terme ( p value pas significative).
@@ -539,7 +539,7 @@ Contrairement à l'équation de la migration, l’estimation de la **variation d
 ### Modele 3
 
 $$
-\Delta \text{Log(Investissement)}_t = \alpha_3 + \theta_1 \Delta \text{Log(Investissement)}_{t-1} + \theta_2 \Delta \text{Log(PIB)}_{t-1} + \theta_3 \Delta \text{MigrationNette}_{t-1} + \epsilon_{3,t}
+\Delta \text{Log(Investissement)}_t = 0.032  -0.351^{*} \Delta \text{Log(Investissement)}_{t-1} + 0.940 \Delta \text{Log(PIB)}_{t-1} -0.223 \Delta \text{MigrationNette}_{t-1} + \epsilon_{3,t}
 $$
 
 >  L'équation de l'investissement montre que ce dernier dispose d'une **croissance autonome positive** représentée par la constante $\alpha_3$. Cependant, un effet de **correction cyclique se presente** : le coefficient négatif de l'investissement passé indique qu'une accélération de l'investissement en (t-1) est statistiquement suivie d'un ralentissement en (t ).Le fait que le PIB et la migration ne soient pas significatifs confirme que l'investissement en Côte d'Ivoire ne répond pas directement aux fluctuations de la richesse nationale ou des flux migratoires, mais suit sa propre logique de cycle et de croissance structurelle.
