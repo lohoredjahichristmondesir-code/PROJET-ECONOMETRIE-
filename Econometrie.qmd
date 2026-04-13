@@ -492,7 +492,7 @@ donnee_ts <- ts(donnee[, c("MigrationNette",
 
 # Étape 2 - Choisir le nombre de retards
 
-lag_select <- VARselect(donnee_ts, lag.max = 8, type = "const")
+lag_select <- VARselect(donnee_ts, lag.max = 5, type = "const")
 lag_select$selection
 
 # Étape 3 - Test de Johansen
@@ -542,7 +542,7 @@ $$
 \Delta \text{Log(Investissement)}_t = 0.032  -0.351^{*} \Delta \text{Log(Investissement)}_{t-1} + 0.940 \Delta \text{Log(PIB)}_{t-1} -0.223 \Delta \text{MigrationNette}_{t-1} + \epsilon_{3,t}
 $$
 
->  L'équation de l'investissement montre que ce dernier dispose d'une **croissance autonome positive** représentée par la constante $\alpha_3$. Cependant, un effet de **correction cyclique se presente** : le coefficient négatif de l'investissement passé indique qu'une accélération de l'investissement en (t-1) est statistiquement suivie d'un ralentissement en (t ).Le fait que le PIB et la migration ne soient pas significatifs confirme que l'investissement en Côte d'Ivoire ne répond pas directement aux fluctuations de la richesse nationale ou des flux migratoires, mais suit sa propre logique de cycle et de croissance structurelle.
+> L'équation de l'investissement montre que ce dernier dispose d'une **croissance autonome positive** représentée par la constante $\alpha_3$. Cependant, un effet de **correction cyclique se presente** : le coefficient négatif de l'investissement passé indique qu'une accélération de l'investissement en (t-1) est statistiquement suivie d'un ralentissement en (t ).Le fait que le PIB et la migration ne soient pas significatifs confirme que l'investissement en Côte d'Ivoire ne répond pas directement aux fluctuations de la richesse nationale ou des flux migratoires, mais suit sa propre logique de cycle et de croissance structurelle.
 
 ### 5-1 Test de Portmanteau
 
@@ -561,7 +561,7 @@ print(test_residus)
 
 Avec une p-value de **0,90**, nous **échouons à rejeter l'hypothèse nulle** d'absence d'autocorrélation. Nous concluons donc que les résidus du modèle sont un bruit blanc, ce qui valide la qualité statistique de notre VAR.
 
-### 5-2 stabilité du modele 
+### 5-2 stabilité du modele
 
 on verifie ici si le modele lui meme est stationnaire
 
@@ -592,7 +592,7 @@ Puisque toutes les racines (La force du lien entre hier et aujourd'hui) ont un m
 ##ici je vais refaire l'hypothese de normalités car le premier a montrer que nous avons oubliez de considerer les chocs structurels ,on va les identifiers d'abords puis refaire le test par la suite
 ```
 
-### 5-3 stabilité structurelle des coefficients du modeles 
+### 5-3 stabilité structurelle des coefficients du modeles
 
 Le test **CUSUM** (Cumulative Sum of Residuals) est un test de **stabilité structurelle**. . il est la version dynamique du test de chow.
 
@@ -638,18 +638,16 @@ for(v in noms_vars) {
 
 ### ##cas migrations
 
-Le test **OLS-CUSUM** confirme la **stabilité structurelle** du modèle, car la courbe reste à l'intérieur des bandes de confiance à 95 %. Cela signifie que les relations entre le PIB, l'Investissement et la Migration sont constantes sur le long terme (1967-2023).
+L'analyse visuelle montre que le modèle reste **statistiquement stable** (dans les bornes), mais la "dérive" de la courbe trahit des événements historiques majeurs que le PIB et l'Investissement n'expliquent pas seuls 
 
 **Identification des chocs**
 
-Bien que le modèle soit stable, on observe des **décrochages brutaux** (pics) qui révèlent l'impact de crises ponctuelles :
+-   **1976 - 1980 (Le premier décrochage) :** Cela correspond à la fin du "Miracle Ivoirien". Le modèle VAR (modele 1) , basé sur **la croissance (PIB,INVESTISSEMENT** ainsi que le flux migratoire passé**)** forte des années précédentes, a probablement **surestimé** les flux migratoires alors que l'économie commençait à ralentir.
 
--   **1994-1998 :** Choc positif (période post-dévaluation du FCFA).
+-   **1990 - 1999 (La dérive positive) :** Malgré l'instabilité politique (décès de Houphouët-Boigny en 1993, dévaluation du Franc CFA en 1994), la migration a été plus forte que ce que prévoyait le modèle. Cela peut traduire une **inertie migratoire** ou des facteurs régionaux (conflits chez les voisins) qui ont poussé les flux vers la Côte d'Ivoire.
 
--   **2002 :** Choc négatif suite au déclenchement de la crise politico-militaire.
+<!-- -->
 
--   **2011 :** Choc négatif majeur lié à la crise post-électorale (point le plus bas).
+-   **1999 - 2011 (La longue descente) :** C'est la période la plus marquée. Le coup d'État de 1999 et la crise de 2002 créent une dérive négative constante. Le modèle "perd le fil" car la relation habituelle(decrite dans le modele 1) est brisée par le **facteur sécuritaire**. La migration baisse systématiquement plus que ce que l'économie seule ne laisserait prévoir.
 
-    Ces événements sont des **valeurs aberrantes** (outliers). Ils justifient l'ajout de **variables dummies** pour ces dates afin de valider le modèle.
-
-### #cas du PIB 
+-   Le creux de 2011 (crise post-électorale) est suivi d'un **saut brutal** en 2014. une cause d'echec du test de **normalité**  : ce saut est un "outlier" statistique dû à la normalisation rapide du pays après la crise.
