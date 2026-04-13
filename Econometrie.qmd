@@ -651,3 +651,21 @@ L'analyse visuelle montre que le modèle reste **statistiquement stable** (dan
 -   **1999 - 2011 (La longue descente) :** C'est la période la plus marquée. Le coup d'État de 1999 et la crise de 2002 créent une dérive négative constante. Le modèle "perd le fil" car la relation habituelle(decrite dans le modele 1) est brisée par le **facteur sécuritaire**. La migration baisse systématiquement plus que ce que l'économie seule ne laisserait prévoir.
 
 -   Le creux de 2011 (crise post-électorale) est suivi d'un **saut brutal** en 2014. une cause d'echec du test de **normalité**  : ce saut est un "outlier" statistique dû à la normalisation rapide du pays après la crise.
+
+### ##Cas du PIB (modele 2)
+
+-    L'inertie du "Miracle" (1975-1977) 
+
+Au début de la période, la courbe CUSUM monte. Cela signifie que le PIB réel croît **plus vite** que ce que les variables du modèle (Investissement et Migration) ne laissent prévoir.
+
+-    1999 - 2011 (instabilité politique et crise-postelectorale)
+
+    Le PIB réel subit des chocs négatifs répétés du a l'instabilité politique. Comme le modèle VAR ne contient pas de variable "guerre", il interprète cela comme une succession d'erreurs systématiques. La dérive montre que la richesse produite est constamment inférieure au potentiel théorique du pays.
+
+-   2012 -2023 :**Le renouveau et la convergence**
+
+    Fin de la crise, retour massif des bailleurs de fonds et grands travaux d'infrastructure.
+
+    Ce n'est pas une instabilité, mais un **rattrapage**. Le modèle VAR voit les investissements repartir et le PIB réel suivre avec une force incroyable. Le retour vers la zone centrale prouve que le modèle est redevenu "précis" : la structure économique de la Côte d'Ivoire a retrouvé une logique prévisible.
+
+    *L'échec du test de normalité est principalement imputable à la période **2011-2012***
