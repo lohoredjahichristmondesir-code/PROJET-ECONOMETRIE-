@@ -544,7 +544,9 @@ $$
 
 > L'équation de l'investissement montre que ce dernier dispose d'une **croissance autonome positive** représentée par la constante $\alpha_3$. Cependant, un effet de **correction cyclique se presente** : le coefficient négatif de l'investissement passé indique qu'une accélération de l'investissement en (t-1) est statistiquement suivie d'un ralentissement en (t ).Le fait que le PIB et la migration ne soient pas significatifs confirme que l'investissement en Côte d'Ivoire ne répond pas directement aux fluctuations de la richesse nationale ou des flux migratoires, mais suit sa propre logique de cycle et de croissance structurelle.
 
-### 5-1 Test de Portmanteau
+### 6-Validation du modele
+
+### 6.1 Test de Portmanteau
 
 Le test de Portmanteau est un test de diagnostic global qui vérifie la qualité de votre modèle VAR en examinant ses résidus.S'assurer que le modèle a capté toute l'information utile. Il vérifie si les erreurs (résidus) sont indépendantes les unes des autres.
 
@@ -561,7 +563,7 @@ print(test_residus)
 
 Avec une p-value de **0,90**, nous **échouons à rejeter l'hypothèse nulle** d'absence d'autocorrélation. Nous concluons donc que les résidus du modèle sont un bruit blanc, ce qui valide la qualité statistique de notre VAR.
 
-### 5-2 stabilité du modele
+### 6.2 stabilité du modele
 
 on verifie ici si le modele lui meme est stationnaire
 
@@ -592,7 +594,7 @@ Puisque toutes les racines (La force du lien entre hier et aujourd'hui) ont un m
 ##ici je vais refaire l'hypothese de normalités car le premier a montrer que nous avons oubliez de considerer les chocs structurels ,on va les identifiers d'abords puis refaire le test par la suite
 ```
 
-### 5-3 stabilité structurelle des coefficients du modeles
+### 6.3 stabilité structurelle des coefficients du modeles
 
 Le test **CUSUM** (Cumulative Sum of Residuals) est un test de **stabilité structurelle**. . il est la version dynamique du test de chow.
 
@@ -644,7 +646,7 @@ L'analyse visuelle montre que le modèle reste **statistiquement stable** (dan
 
 -   **1976 - 1980 (Le premier décrochage) :** Cela correspond à la fin du "Miracle Ivoirien". Le modèle VAR (modele 1) , basé sur **la croissance (PIB,INVESTISSEMENT** ainsi que le flux migratoire passé**)** forte des années précédentes, a probablement **surestimé** les flux migratoires alors que l'économie commençait à ralentir.
 
--   **1990 - 1999 (La dérive positive) :** Malgré l'instabilité politique (décès de Houphouët-Boigny en 1993, dévaluation du Franc CFA en 1994), la migration a été plus forte que ce que prévoyait le modèle. Cela peut traduire une **inertie migratoire** ou des facteurs régionaux (conflits chez les voisins) qui ont poussé les flux vers la Côte d'Ivoire.
+-   **1990 - 1999 (La dérive positive) :** Malgré l'instabilité politique (décès de Houphouët-Boigny en 1993, dévaluation du Franc CFA en 1994, la nomination d'un nouveau premier ministre et la fin du partie unique), la migration a été plus forte que ce que prévoyait le modèle. Cela peut traduire une **inertie migratoire** ou des facteurs régionaux (conflits chez les voisins) qui ont poussé les flux vers la Côte d'Ivoire.
 
 <!-- -->
 
@@ -658,6 +660,12 @@ L'analyse visuelle montre que le modèle reste **statistiquement stable** (dan
 
 Au début de la période, la courbe CUSUM monte. Cela signifie que le PIB réel croît **plus vite** que ce que les variables du modèle (Investissement et Migration) ne laissent prévoir.
 
+-   1990 :Le choc de l'Austérité (Plan Ouattara)
+
+    Face à un déficit budgétaire abyssal (plus de 200 milliards de FCFA), l'État a appliqué un **plan de stabilisation** radical en 1990. Pour réduire les dépenses, l'État a massivement coupé dans les budgets de fonctionnement et les investissements publics. En termes de **PIB réel**, cela s'est traduit par une chute de la commande publique, moteur historique de la croissance ivoirienne.
+
+<!-- -->
+
 -    1999 - 2011 (instabilité politique et crise-postelectorale)
 
     Le PIB réel subit des chocs négatifs répétés du a l'instabilité politique. Comme le modèle VAR ne contient pas de variable "guerre", il interprète cela comme une succession d'erreurs systématiques. La dérive montre que la richesse produite est constamment inférieure au potentiel théorique du pays.
@@ -668,4 +676,233 @@ Au début de la période, la courbe CUSUM monte. Cela signifie que le PIB réel 
 
     Ce n'est pas une instabilité, mais un **rattrapage**. Le modèle VAR voit les investissements repartir et le PIB réel suivre avec une force incroyable. Le retour vers la zone centrale prouve que le modèle est redevenu "précis" : la structure économique de la Côte d'Ivoire a retrouvé une logique prévisible.
 
-    *L'échec du test de normalité est principalement imputable à la période **2011-2012***
+    *L'échec du test de normalité est principalement imputable à la période **1990 et 2011***
+
+### ##Cas de l'investissement (modele 3)
+
+la courbe ne sort pas des bornes (modèle stable), mais ses **changements de pente** racontent l'histoire des capacités productives du pays :
+
+-   **Le choc de 1980-1982 (Début de dérive) :** La baisse de la pente marque l'arrêt physique des grands chantiers du "Miracle". L'économie cesse d'accumuler du capital réel.
+
+-   **Le choc de 1990,2002 (Le creux historique) :** C'est le choc le plus violent. Le plan d'austérité et l'instabilité politique provoquent un effondrement de l'investissement en volume. Le modèle VAR "dérive" car il ne peut pas anticiper un arrêt aussi brutal de l'achat de machines et d'infrastructures.
+
+-   **Le choc de 2011-2012 (Le rebond vertical) :** La remontée brutale vers la ligne zéro montre un rattrapage massif après la crise post-électorale. Ce n'est pas une instabilité, mais une **récupération ultra-rapide** de l'outil de production.
+
+### 6.3.1 Synthese du test de Cusum
+
+L'étude des tests **CUSUM** sur les trois variables (**PIB réel**, **Investissement réel**, **Migration nette**) permet de conclure à la validité structurelle du modèle malgré l'échec du test de normalité.
+
+Le modèle VAR a été soumis à des tensions majeures qui expliquent les dérives observées sur les graphiques :
+
+-   **1978-1980 :** Rupture du cycle de croissance du "Miracle". Décrochage de l'investissement réel et du PIB.
+
+-   **1990 :** **Choc paroxystique.** L'austérité budgétaire et l'instabilité politique créent le creux historique de l'investissement, entraînant le PIB et la Migration nette dans une dérive négative.
+
+-   **2002-2011 :** Période d'instabilité socio-politique causant une dérive constante (erreurs systématiques)
+
+-   **2012-2014 :** Phase de **rattrapage brutal**. La remontée verticale vers la ligne zéro montre une correction rapide de l'économie, créant des résidus atypiques.
+
+L'échec du test de normalité n'est pas dû à une mauvaise spécification, mais à la nature des données ivoiriennes :
+
+-   **Outliers historiques :** Les années 1990 et 2012 génèrent des résidus trop importants pour la loi normale (phénomène de **queues épaisses**).
+
+-   **Asymétrie :** Les crises répétées créent une accumulation d'erreurs négatives sur de longues périodes, déformant la distribution des résidus.
+
+### 6.4 Correction du Modele VAR
+
+*Pour corriger l'asymétrie des résidus et valider le test de normalité, nous allons introduit deux variables exogènes impulsionnelles (Dummies) pour les années **1990** et **2011-2012**. Ces variables permettent d'isoler les chocs exogènes liés aux crises politiques et aux plans d'ajustement structurel, garantissant ainsi que les coefficients du modèle VAR reflètent la dynamique économique structurelle de la Côte d'Ivoire hors événements exceptionnels.*
+
+### ##ajout des variables dummies (impulsionnelles) et choix du p optimal pour le var corrigé
+
+```{r}
+# 1. Extraire les résidus de votre modèle initial
+res <- resid(var.m)
+
+# 2. Configurer l'affichage pour voir les 3 graphiques d'un coup
+par(mfrow = c(3, 1), mar = c(3, 4, 2, 2))
+
+# 3. Boucle pour tracer chaque variable
+for(i in 1:ncol(res)) {
+  # Tracer le résidu de la variable i
+  plot(res[,i], type = "l", main = paste("Résidus de la Variable :", colnames(res)[i]), 
+       ylab = "Résidus", col = "blue")
+  
+  # Ajouter une ligne horizontale à 0
+  abline(h = 0, col = "black")
+  
+  # Ajouter des lignes de seuils (3 écarts-types) pour repérer les anomalies
+  seuil <- 3 * sd(res[,i])
+  abline(h = c(seuil, -seuil), col = "red", lty = 2)
+  
+  # Identifier les points qui dépassent le seuil pour vous aider
+  outliers_visuels <- which(abs(res[,i]) > seuil)
+  points(outliers_visuels, res[outliers_visuels, i], col = "red", pch = 19)
+}
+
+# Remettre l'affichage par défaut
+par(mfrow = c(1, 1))
+
+
+```
+
+```         
+```
+
+```{r}
+
+# 1. Sélection des dummies les plus significatives d'après vos résultats
+# 48 (Migration ***), 33 (Migration ***), 23 (Investissement ***), 46 (PIB ***)
+indices_valides <- c(23, 33, 46, 48)
+
+n_obs <- nrow(resid(var.m))
+dummies_epurees <- matrix(0, nrow = n_obs, ncol = length(indices_valides))
+
+for(i in 1:length(indices_valides)) {
+  dummies_epurees[indices_valides[i], i] <- 1
+}
+colnames(dummies_epurees) <- paste0("D_", indices_valides)
+
+# 2. Ré-estimation (p=1 pour maximiser la puissance du test)
+data_alignee <- tail(donnee_diff_ts, n_obs)
+mod_epure <- VAR(data_alignee, p = 1, type = "const", exogen = dummies_epurees)
+
+# 3. Vérification
+summary(mod_epure)
+norm_test <- normality.test(mod_epure)
+norm_test
+```
+
+```{r}
+
+##test de cusum
+
+# 1. Calculer le test
+stability_test2 <- stability(mod_epure, type = "OLS-CUSUM")
+# 7. Nouveau test CUSUM pour confirmer la stabilité des coefficients
+# 1. Dates (1965-2023 moins les 2 premières car diff=1 et p=1)
+dates_modele <- 1967:2023
+
+# 2. On s'assure qu'un seul graphique s'affiche à la fois
+par(mfrow = c(1, 1), mar = c(6, 4, 3, 2))
+
+# 3. Boucle pour un affichage séparé
+noms_vars <- names(stability_test2$stability)
+
+for(v in noms_vars) {
+  # Tracer le test pour la variable v
+  plot(stability_test2$stability[[v]], 
+       main = paste("Stabilité CUSUM :", v), 
+       col = "darkblue", 
+       xaxt = "n", 
+       las = 1)
+  
+  # Ajouter les années à la verticale (8 dates repères)
+  at_points <- seq(0, 1, length.out = 10)
+  labels_ans <- round(seq(min(dates_modele), max(dates_modele), length.out = 10))
+  
+  # las = 2 pour la verticalité, cex.axis pour la taille
+  axis(1, at = at_points, labels = labels_ans, las = 2, cex.axis = 0.9)
+  
+  # Optionnel : ajoute une grille pour mieux lire les dates
+  grid(nx = NULL, ny = NULL, lty = 2, col = "gray")
+}
+
+```
+
+```{r}
+# 1. Test d'absence d'autocorrélation (Le plus important ici)
+# H0: Pas d'autocorrélation. Si p-value > 0.05, le modèle est valide.
+serial.test(mod_epure, lags.pt = 12, type = "PT.asymptotic")
+
+
+```
+
+```{r}
+# Test d'homoscédasticité (ARCH)  (Si p-value > 0.05, nos résidus ont une variance constante, ce qui est idéal pour la validité du modèle.)
+test_arch <- vars::arch.test(mod_epure, lags.multi = 5, multivariate.only = TRUE)
+print(test_arch)
+
+```
+
+```{r}
+# 1. On récupère les racines (qui sont réelles ici)
+roots_val <- vars::roots(mod_epure)
+
+# 2. Création du graphique vide avec le bon repère
+plot(NULL, xlim=c(-1,1), ylim=c(-1,1), asp=1,
+     xlab="Réel", ylab="Imaginaire",
+     main="Cercle Unité - Stabilité du VAR")
+
+# 3. Ajout des axes
+abline(h=0, v=0, lty=2, col="gray")
+
+# 4. Dessin du cercle unité en rouge
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, border="red", lwd=2)
+
+# 5. Placement des racines (sur l'axe horizontal car elles sont réelles)
+points(roots_val, rep(0, length(roots_val)), pch=19, col="blue", cex=1.5)
+
+# 6. Ajout d'une légende pour plus de clarté
+legend("topright", legend=c("Racines AR", "Cercle unité"), 
+       col=c("blue", "red"), pch=c(19, NA), lty=c(NA, 1))
+
+
+```
+
+L'analyse de la validité du modèle repose sur une série de tests de diagnostic rigoureux visant à confirmer que les résidus se comportent comme un bruit blanc et que les paramètres sont fiables.
+
+-   **Stabilité du système :** L'examen des racines du polynôme caractéristique confirme la stationnarité du VAR. **Toutes les racines** sont strictement inférieures à l'unité. Le système est donc stable : les chocs appliqués aux variables s'estompent avec le temps et ne divergent pas.
+
+-   **Absence d'autocorrélation :** Le test de Portmanteau (asymptotique) appliqué aux résidus conclut à l'absence de corrélation sérielle (p-value \> 0,05). Cela démontre qu'un seul retard est suffisant pour capturer toute la dynamique temporelle des séries différenciées.
+
+-   **Homoscédasticité :** Le test ARCH multivarié ne permet pas de rejeter l'hypothèse nulle de variance constante des résidus (p-value \> 0,05). L'absence d'effets ARCH garantit que l'incertitude du modèle est stable sur toute la période.
+
+-   **Stabilité structurelle (CUSUM) :** le test **CUSUM** appliqué à l'équation de l'investissement confirme la robustesse structurelle du système. Bien que la série ait connu des phases de fluctuation plus marquées que le PIB (notamment durant la décennie 1980), le processus empirique demeure confiné dans les bornes critiques. Cette stabilité globale de toutes les équations du VAR(1) légitime l'analyse des coefficients et garantit que les relations estimées ne sont pas le produit de ruptures structurelles non identifiées
+
+-   **est de Normalité :** L'hypothèse de normalité de Jarque-Bera est rejetée principalement en raison d'un excès de Kurtosis . Ce résultat, fréquent sur de petits échantillons (moins de 60 echantillions) est ici maîtrisé par l'inclusion de variables muettes (**dummies**) qui capturent les chocs extrêmes. Dans un cadre de stabilité et d'absence d'autocorrélation, la non-normalité n'affecte pas la convergence des estimateurs OLS, ce qui autorise la poursuite de l'analyse.
+
+### **##Synthèse Globale du Modèle VAR(1)**
+
+Après validation de la stabilité structurelle (CUSUM) et des diagnostics de bruit blanc (Portmanteau, ARCH), nous présentons les résultats du **Modèle 1**. Ce modèle analyse les interactions entre la migration nette ,la croissance du PIB et l'investissement tout en neutralisant les chocs atypiques via quatre variables muettes (duminies)
+
+Les variables muettes identifiées capturent les ruptures majeures de l'histoire ivoirienne :
+
+-   D_23 : 1989 — crise des matieres premieres
+
+-   D_33 : 1999 — instabilité politique et coup d'etat
+
+-   D46 : 2012 — reprise economique post crise et reconstruction
+
+-   D48 : 2014 — consolidation de la croissance et attractivité regionales
+
+### Modele1
+
+$$ \Delta \text{MigrationNette}_t = -0.0017 + 0.1299 \, \Delta \text{MigrationNette}_{t-1}^{*} + 0.0059 \, \Delta \text{Log(PIB)}_{t-1} - 0.0044 \, \Delta \text{Log(Investissement)}_{t-1} + 0.0144 \, D_{23} - 0.1484 \, D_{33}^{***} - 0.0330 \, D_{46}^{*} + 0.2330 \, D_{48}^{***} + \epsilon_{1,t} $$
+
+-   **Interprétation :** La migration nette est caractérisée par une forte auto-corrélation positive. Elle est cependant dominée par des chocs exogènes majeurs ( *instabilité politique et coup d'etat ,consolidation de la croissance et attractivité regionales,reprise economique post crise et reconstruction*) indiquant que les flux répondent davantage à des événements structurels ou politiques qu'à des variables économiques immédiates.
+
+-   **Performance :** $$ R^{2} = 0,873$$
+
+    Le modèle explique plus de 87 % de la variance, ce qui est excellent.
+
+### Modele 2
+
+$$ \Delta \text{Log(PIB)}_t = 0.0190^{*} + 0.2313 \, \Delta \text{MigrationNette}_{t-1} + 0.4064 \, \Delta \text{Log(PIB)}_{t-1}^{***} + 0.0249 \, \Delta \text{Log(Investissement)}_{t-1}^{\cdot} + 0.0889 \, D_{23}^{*} - 0.0222 \, D_{33} + 0.1542 \, D_{46}^{***} + 0.0552 \, D_{48} + \epsilon_{2,t} $$
+
+-   **interprétation :** Le PIB présente une forte inertie . L'investissement contribue positivement à la croissance (significatif à 10 %). L'effet de la migration, bien que positif reste statistiquement incertain dans cette configuration. toutefois les choc en **1989 et 2012 sont significatifs.** Bien que l'année 1989 soit une année de crise des matières premières (choc négatif sur l'investissement), le modèle identifie ici un coefficient positif significatif. le plus frappant est l'annee 2012. Le coefficient est très élevé et ultra-significatif. Il capte le **"rebond mécanique"** exceptionnel de l'économie ivoirienne juste après la fin de la crise post-électorale de 2011. C'est l'année où la Côte d'Ivoire a affiché l'un des taux de croissance les plus élevés au monde (environ 10.7%).
+
+-   **Performance :** $$ R^{2}=0,39$$
+
+    Une performance correcte pour un modèle en différences premières, captant l'essentiel .
+
+### Modele 3
+
+$$ \Delta \text{Log(Investissement)}_t = 0.0459 + 0.0478 \, \Delta \text{MigrationNette}_{t-1} + 0.7770 \, \Delta \text{Log(PIB)}_{t-1} - 0.2463 \, \Delta \text{Log(Investissement)}_{t-1}^{*} - 1.2732 \, D_{23}^{***} - 0.4771 \, D_{33} + 1.1803 \, D_{46}^{**} + 0.0593 \, D_{48} + \epsilon_{3,t} $$
+
+-   interpretation
+
+**Mécanisme de correction d'erreur interne :** Un coefficient négatif signifie qu'un accroissement exceptionnel de l'investissement à l'année a tendance à être suivi d'une réduction (ou d'une stabilisation) à l'année .Cela indique que l'investissement en Côte d'Ivoire ne suit pas une trajectoire linéaire, mais fonctionne par **"à-coups"**.
+
+**Saturation et absorption :** . Après une année de grands travaux (comme le boom de 2012 identifié ), le pays entre dans une phase de finalisation des projets, ce qui réduit naturellement le flux de nouveaux investissements l'année suivante.
+
+-   **Choc 1989 ( laisse moi un peu d'espace je vais terminer ca )**
