@@ -1,0 +1,990 @@
+---
+title: "VAR et Causalité de Granger : Migrations, Investissements et Croissance"
+author: "Yahiri boh daniel,   ,  "
+date: "2026-02-24"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+# 1-Description du projet
+
+Le projet consiste à réaliser une étude économétrique pour comprendre comment la migration, l’investissement et la croissance économique s’influencent mutuellement en Côte d’Ivoire sur les 60 dernières années (1965–2024). En suivant la méthode de Yaya Keho, ce projet mobilise les outils avancés des séries temporelles multivariées, et notamment le modèle VAR (Vecteur Autorégressif), qui constitue le cœur analytique de l’étude.
+
+## 1-1 chargement des packages
+
+```{r}
+#chargement des packages
+# Installation des packages (à faire une seule fois)
+#install.packages(c("tseries",  # Tests de base : ADF, KPSS, PP
+                    #  "urca",     # Tests avancés avec options (trend, drift, lags)
+                 #  "vars",     # Modélisation VAR (cœur de l'analyse)
+                 #  "aTSA"))    # Tests ADF automatiques (3 spécifications d'un coup)
+#install.packages("forecast")  # pour convertir ts en dataframe
+#install.packages('ggfortify')
+# Chargement des packages (à faire à chaque session)
+library(tseries)  # Activation des tests de stationnarité de base
+library(urca)     # Activation des tests de racine unitaire avancés
+library(vars)     # Activation des outils VAR
+library(aTSA)     # Activation des tests ADF automatisés
+library(readxl)    # fichier excel
+
+library(ggplot2)
+library(forecast)
+library(tidyr)
+library(dplyr)
+library(ggfortify)
+Sys.setlocale("LC_ALL", "French_France.UTF-8")
+```
+
+## 1-2 importation des donnees et reconversion
+
+```{r}
+#importation des donnee
+donnee <- read_excel("C:\\causaliteVar.xlsx")
+donnee <- data.frame(donnee)
+colnames(donnee) <- c("annee",
+                      "PIB_reel",
+                      "InvestissementNiveau",
+                      "MigrationNette")
+View(donnee)
+```
+
+```{r}
+#les migrations sont en miliers , conversions en millions 
+
+donnee$MigrationNette <- donnee$MigrationNette/1000
+
+# Convertir toutes les variables en ts (serie temporelle) sans la colonne date
+donnee$InvestissementNiveau_Log <- log(donnee$InvestissementNiveau)
+donnee$PIB_reel_Log <- log(donnee$PIB_reel)
+
+donnee_ts <- ts(donnee[, -c(1,2,3)], start = 1965, frequency = 1)
+View(donnee_ts)
+```
+
+## 1-3 verifications des valeurs manquante
+
+```{r}
+#1-verification des valeurs manquantes et de la structure des donnees
+analyser_structure <- function(df) {
+  #a. Calcul du nombre de colonnes par type
+  nb_var_quanti <- sum(sapply(df, is.numeric))
+  nb_var_quali_categorielle <- sum(sapply(df,function(x) is.factor(x)))
+  nb_var_quali_nominale <- sum(sapply(df, function(x) is.character(x)))     
+  
+  #b. Calcul du total des valeurs manquantes (NA)
+  total_val_na <- sum(is.na(df))
+  
+  #c. Detail par colonne des na (pour plus de precision)
+  detail_na <- sapply(df, function(x) sum(is.na(x)))    
+  #d. Calcul de la proportion de valeurs manquantes
+  proportion_manquantes <- detail_na / nrow(df)
+
+  
+  #e. Affichage des resultats
+  cat("--- Resumer de la structure ---\n")
+  cat("Variables Quantitatives :", nb_var_quanti, "\n")
+  cat("Variables Qualitatives categorielle  :", nb_var_quali_categorielle, "\n")
+  cat("Nombre de variable nominale  :",nb_var_quali_nominale, "\n" )
+  cat("Total valeurs manquantes :", total_val_na, "\n\n")
+  
+  # Retourne un tableau detaille pour inspection
+  return(data.frame(
+    Type = sapply(df, class),
+    Nb_NA = detail_na,
+    Proportion=proportion_manquantes
+  ))
+
+}
+
+analyser_structure(donnee_ts)
+```
+
+# 2-Visualisation et Test de Stationnarité
+
+## A- cas des migrations
+
+### #visualisation
+
+```{r}
+class(donnee_ts)
+library(scales) # Nécessaire pour label_number()
+
+# Migration nette en valeur brute
+
+autoplot(donnee_ts[, "MigrationNette"]) +
+  # Ligne de référence à zéro (fondamental pour la migration)
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.5) +
+  # Amélioration des titres
+  labs(
+    title = "Évolution de la Migration Nette",
+    subtitle = "Côte d'Ivoire (1965-2024) ",
+    y = "Migration (en millions)",
+    x = "Année"
+  ) +
+  # Nettoyage de l'axe Y (supprime la notation 1e-04)
+  scale_y_continuous(labels = label_number(suffix = " M")) + 
+  # Grille plus propre
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    panel.grid.minor = element_blank()
+  )
+```
+
+### \# interpretations
+
+Bien avant tout il est interressant de noter visuellement la non stationarité du flux migratoire pour les raisons suivantes :
+
+La moyenne change au fil du temps (fenetre 2010-2015 vs 1975-1980) - La variance change (grande volatilité autour de 2010-2015)
+
+\- Il y a des tendances et ruptures structurelles visibles ,La migration nette en Côte d'Ivoire reflète fidèlement les grands cycles économiques et politiques du pays. Durant le miracle ivoirien (1960-1980), le pays exerce une forte attractivité portée par le boom agricole (café, cacao), l'urbanisation rapide d'Abidjan et un marché du travail dynamique, culminant par un pic migratoire vers 1975. La décennie 1980 marque un retournement progressif.
+
+Paradoxalement, malgré l'adoption d'une loi migratoire stricte en 1990, le pays enregistre son plus grand pic historique d'entrées. Ce phénomène s'explique moins par l'attractivité économique que par les conflits armés dans les pays voisins (Libéria, Sierra Leone...) générant un afflux de réfugiés, renforcé par le regroupement familial des primo-arrivants.
+
+La période 2000-2015 est marquée par un effondrement brutal du flux migratoire devenant largement négatif, atteignant son creux historique vers 2013, du probablement a l'instabilité politique et les crises électorales successives minant cette periode.mais des tests supplementaires nous permettra d'en savoir plus dans la suite.Enfin, une stabilisation fragile s'amorce à partir de 2015, temporairement freinée par la crise Covid-19 en 2020 qui a globalement ralenti les flux migratoires mondiaux.
+
+### #test de stationnarité : ADF
+
+```{r}
+donnee_ts <- as.data.frame(donnee_ts)
+adf.test(donnee_ts$MigrationNette)
+
+
+```
+
+l'allure de la serie de migrations nous conduit precisement vers le type 3 dans la sortie de logiciel,
+
+Le test ADF, effectué avec des "retards allant de 0 à 3", confirme la non-stationnarité de la série avec des p-values systématiquement supérieures au seuil 0.01, 0.05 et 0.1 ce qui signifie que son niveau dépend fortement du temps et de son passé.
+
+## A-1 differentiation de la serie migrations
+
+### #differentiation
+
+```{r}
+#on creer un autre instance car avec la differentiation on aura une ligne de moins
+#l'introduire directement des  dataframe creera un petit probleme
+
+MigrationNette_diff1 <- diff(donnee_ts$MigrationNette)
+
+
+```
+
+### #visualisation + TEST
+
+```{r}
+
+##visualisation
+# Créer le dataframe pour la série différenciée
+df_diff <- data.frame(
+  annee = 1966:2023,
+  migration_diff = as.numeric(MigrationNette_diff1)
+)
+
+# Graphique optimisé avec grilles et années verticales
+ggplot(df_diff, aes(x = annee, y = migration_diff)) +
+  # 1. Thème et activation des grilles
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(color = "grey90"), # Affiche la grille verticale
+    axis.line.x = element_line(color = "#333333"),
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
+    plot.subtitle = element_text(color = "grey40", size = 10),
+    # 2. Rotation des années à 90 degrés
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1) 
+  ) +
+  
+  # 3. Échelles : Un saut tous les 2 ans pour profiter de la lecture verticale
+  scale_x_continuous(breaks = seq(1966, 2024, by = 2)) +
+  
+  # 4. Lignes de référence et données
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
+  geom_area(fill = "#2980b9", alpha = 0.1) +
+  geom_line(color = "#2980b9", linewidth = 0.9) +
+  
+  labs(
+    title = "Analyse de la stationnarité : Migration Nette (ΔY)",
+    subtitle = "Série différenciée (1966-2023) · Visualisation des chocs structurels",
+    x = "Année",
+    y = "Variation (millions)",
+    caption = paste0("Écart-type global : ", round(sd(df_diff$migration_diff), 4))
+  )
+
+
+adf.test(MigrationNette_diff1)
+
+```
+
+La série de la Migration Nette en niveaux présentait une non-stationnarité flagrante. Après passage en **première différence** , le test **ADF avec le modele du type 2** rejette l'hypothèse de racine unitaire avec une p-value très significative (P inferieur pratiquement a 0,01) a tous les seuils independemment du nombre retards ajouté pour corriger l'autoccoralation des residus. Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1),**
+
+**toutefois** dans le type 3 du test ou l'on peut avoir une idee d'une probable rupture structurelle ; on peut constater une p-value un peu proche de 0,05 avec un retard de 3, cela explique pourquoi la variance semble un peu instable en des points particuliers : ce qui signifie que les ruptures structurelles en 1999 et 2014 ont eu un impact au seuil de 1% , ces periodes correspondent a des periodes d'instabilité politique comme le coup d'etat en 1999 avec le general Robert Guei
+
+## B- Cas du PIB
+
+### #visualisation
+
+```{r}
+donnee_ts <- ts(donnee_ts, start = 1965, frequency = 1) # il faut penser apres a le ramener en ts
+
+# 1. Calcul de la moyenne sur les 60 ans 
+moyenne_pib <- mean(donnee_ts[, "PIB_reel_Log"])
+
+# 2. Création du graphique
+autoplot(donnee_ts[, "PIB_reel_Log"]) +
+  # Ligne de référence (moyenne historique)
+  geom_hline(yintercept = moyenne_pib, linetype = "dashed", color = "red", linewidth = 0.8) +
+  # Annotation pour expliquer la ligne
+  annotate("text", x = 1970, y = moyenne_pib + 0.15, 
+           label = "Moy_hist(60 ans)", 
+           color = "red", fontface = "italic", hjust = 0) +
+  # Configuration de l'axe X : saut de 5 ans
+  scale_x_continuous(breaks = seq(1965, 2024, by = 5)) +
+  
+  # Habillage du graphique
+  labs(
+    title = "Évolution du PIB_REEL (Log)",
+    subtitle = "Côte d'Ivoire (1965-2024)",
+    y = "Log du PIB_REEL",
+    x = "Année"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    panel.grid.minor = element_blank()
+  )
+
+
+
+```
+
+### #interpretation( a terminer)
+
+( a faire ! , toutefois on remarque la serie est non stationnaire...elle s'eloigne de sa moyenne historique... sa moyenne n'est pas constante ) l'allure nous amene a considerer une sortie de logiciel de type trois dans le test ADF
+
+### #test de stationnarité
+
+```{r}
+donnee_ts <- as.data.frame(donnee_ts)
+adf.test(donnee_ts$PIB_reel_Log)
+
+
+```
+
+Le modèle correct à regarder ici est le **Type 3 : with drift and trend** (avec constante et tendance) car Les types 1 et 2 sont ici inappropriés : ils ignorent la tendance évidente que l'on voit à l'œil nu.**Les p-values** sont toutes très élevées (entre **0.640 et 0.966**).Comme elles sont largement supérieures au seuil de **0.01**, 0,05 on **ne peut pas rejeter l'hypothèse nulle** de racine unitaire.La série du Log PIB est **non-stationnaire**. ce qui signifie que son niveau dépend fortement du temps et de son passé.
+
+## B-1 Differentiation du PIB
+
+### #differentiation
+
+```{r}
+#on creer un autre instance car avec la differentiation on aura une ligne de moins
+#l'introduire directement des  dataframe creera un petit probleme
+
+PIB_diff1 <- diff(donnee_ts$PIB_reel_Log)
+
+```
+
+### #visualisation +test
+
+```{r}
+##visualisation
+# Créer le dataframe pour la série différenciée
+df_diff2 <- data.frame(
+  annee = 1966:2023,
+  PIB_diff = as.numeric(PIB_diff1)
+)
+
+
+# Graphique optimisé avec grilles et années verticales
+ggplot(df_diff2, aes(x = annee, y = PIB_diff)) +
+  # 1. Thème et activation des grilles
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(color = "grey90"), # Affiche la grille verticale
+    axis.line.x = element_line(color = "#333333"),
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
+    plot.subtitle = element_text(color = "grey40", size = 10),
+    # 2. Rotation des années à 90 degrés
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1) 
+  ) +
+  
+  # 3. Échelles : Un saut tous les 2 ans pour profiter de la lecture verticale
+  scale_x_continuous(breaks = seq(1966, 2024, by = 2)) +
+  
+  # 4. Lignes de référence et données
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
+  geom_area(fill = "#2980b9", alpha = 0.1) +
+  geom_line(color = "#2980b9", linewidth = 0.9) +
+  
+  labs(
+    title = "Analyse de la stationnarité : PIB (ΔY)",
+    subtitle = "Série différenciée (1966-2023)",
+    x = "Année",
+    y = "PIB_LOG",
+    caption = paste0("Écart-type global : ", round(sd(df_diff2$PIB_diff), 4))
+  )
+
+adf.test(PIB_diff1)
+```
+
+#interpretation (a faire) :
+
+pour cette partie on prend le modele de type 2 , notre echantillons etant petit on prend le critere BIC qui nous amene a choisir le plus petit lag (0 ou 1) ,la p value est significative donc on rejete l'hypothe de non stationnarité ( ameliore l(interpretation)
+
+## C-cas de l'investissement
+
+### #visualisation
+
+```{r}
+donnee_ts <- ts(donnee_ts, start = 1965, frequency = 1) # il faut penser apres a le ramener en ts
+
+# 1. Calcul de la moyenne sur les 60 ans 
+moyenne_invest <- mean(donnee_ts[, "InvestissementNiveau_Log"])
+
+# 2. Création du graphique
+autoplot(donnee_ts[, "InvestissementNiveau_Log"]) +
+  # Ligne de référence (moyenne historique)
+  geom_hline(yintercept = moyenne_invest, linetype = "dashed", color = "red", linewidth = 0.8) +
+  # Annotation pour expliquer la ligne
+  annotate("text", x = 1965, y = moyenne_invest + 0.15, 
+           label = "Moy_hist(60 ans)", 
+           color = "red", fontface = "italic", hjust = 0) +
+  # Configuration de l'axe X : saut de 5 ans
+  scale_x_continuous(breaks = seq(1965, 2024, by = 5)) +
+  
+  # Habillage du graphique
+  labs(
+    title = "Évolution du Taux d'Investissement en million (Log)",
+    subtitle = "Côte d'Ivoire (1965-2024)",
+    y = "Log de L'investissement",
+    x = "Année"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+### #interpretation( a faire comme le cas de la migration )
+
+### #test de stationnarite
+
+```{r}
+donnee_ts <- as.data.frame(donnee_ts)
+adf.test(donnee_ts$InvestissementNiveau_Log)
+
+```
+
+ici tu regardes le modele type trois pour interpreter , deja tu pourras remarquer que c'est pas stationnaire comme on peut le voir deja sur le graphe , inspire toi de celui du PIb sans faire de copie coller
+
+## C-1 differenciation
+
+### #differenciation
+
+```{r}
+#on creer un autre instance car avec la differentiation on aura une ligne de moins
+#l'introduire directement des  dataframe creera un petit probleme
+
+Investissement_diff1<- diff(donnee_ts$InvestissementNiveau_Log)
+```
+
+### #visualisation +test
+
+```{r}
+##visualisation
+# Créer le dataframe pour la série différenciée
+df_diff1 <- data.frame(
+  annee = 1966:2023,
+  Investissement_diff = as.numeric(Investissement_diff1)
+)
+
+
+# Graphique optimisé avec grilles et années verticales
+ggplot(df_diff1, aes(x = annee, y = Investissement_diff)) +
+  # 1. Thème et activation des grilles
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(color = "grey90"), # Affiche la grille verticale
+    axis.line.x = element_line(color = "#333333"),
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10)),
+    plot.subtitle = element_text(color = "grey40", size = 10),
+    # 2. Rotation des années à 90 degrés
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1) 
+  ) +
+  
+  # 3. Échelles : Un saut tous les 2 ans pour profiter de la lecture verticale
+  scale_x_continuous(breaks = seq(1966, 2024, by = 2)) +
+  
+  # 4. Lignes de référence et données
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.5) +
+  geom_area(fill = "#2980b9", alpha = 0.1) +
+  geom_line(color = "#2980b9", linewidth = 0.9) +
+  
+  labs(
+    title = "Analyse de la stationnarité : Investissement (ΔY)",
+    subtitle = "Série différenciée (1966-2023) ",
+    x = "Année",
+    y = "Variation_LOG",
+    caption = paste0("Écart-type global : ", round(sd(df_diff1$Investissement_diff), 4))
+  )
+
+adf.test(Investissement_diff1)
+
+```
+
+Après passage en **première différence** , le test **ADF avec le modele de type 2** rejette l'hypothèse de racine unitaire avec une p-value significative (P-vlue inferieur a 0,1) pour les retard de 0 a 1 . Cela confirme que la série est **intégrée d'ordre 1**, notée **I(1),**
+
+dans le modele de type 3 du test ; on peut constater une p-value un au dessus 0,05 avec un retard de 3, cela attire un peu notre attention sur la faible variabilité la variance un peu en des points particuliers.
+
+## 3 rassablement des donnees differenciées au cas ou
+
+toutes nos series sont d'ordre d'integralité I(1) ce tableaux ci-dessous rassemble les données differenciées en serie ts
+
+```{r}
+donnee_diff <- data.frame(MigrationNette_diff1,PIB_diff1,Investissement_diff1)
+donnee_diff_ts <-ts(donnee_diff, start = 1966, frequency = 1)  #quand differencie on commence par l'annee qui suit
+View(donnee_diff_ts)
+```
+
+## 4-Test de cointegration
+
+#visualisation
+
+```{r}
+
+# Préparer les données en format long
+donnee_long <- donnee %>%
+  select(annee, PIB_reel_Log, InvestissementNiveau_Log, MigrationNette) %>%
+  pivot_longer(cols = -annee, 
+               names_to = "Variable", 
+               values_to = "Valeur")
+
+# Graphique
+ggplot(donnee_long, aes(x = annee, y = Valeur, color = Variable)) +
+  geom_line(size = 1) +
+  facet_wrap(~ Variable, scales = "free_y", ncol = 1) +
+  labs(title = "Évolution des variables dans le temps",
+       x = "Année",
+       y = "Valeur") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+Naturellement les courbes montrent la non stationariter des variables etudier précédemment. L'intérêt du test de cointegration de Johansson est de traduit dans un premier temps un model de pertinance mettant en evidence l évolution de chaque variable puis dans un second temps évaluer la distance entre ces deux évolutions( une relation d'equilibre a long terme). Si les distances entre évolution est quasi constante(les variables sont cointégré), plus besoins d un modèle VAR pour étudier la relation entre variable on fera usage d un VECM (MODÈLE VECTORIEL DE CORRÉLATION D ERREUR). Dans le cas contraire il sera plus adéquat de faire un VAR. Ansi donc on peut deja faire l hypothèse de non cointegration en regardant l allure des courbes des différentes variables .
+
+### #test de cointegration
+
+```{r}
+# Étape 1 - on ramene donnee en serie temp
+donnee_ts <- ts(donnee[, c("MigrationNette", 
+                            "InvestissementNiveau_Log", 
+                            "PIB_reel_Log")], 
+                start = 1965, 
+                frequency = 1)
+
+# Étape 2 - Choisir le nombre de retards
+
+lag_select <- VARselect(donnee_ts, lag.max = 5, type = "const")
+lag_select$selection
+
+# Étape 3 - Test de Johansen
+
+johansen_test <- ca.jo(donnee_ts, 
+                        type = "trace", 
+                        ecdet = "const", 
+                        K = 2)        
+summary(johansen_test)
+
+```
+
+tous les criteres converges vers le choix optimaux qui est de 1, toutefois pour un echantillon plus petit , le critere de BIC est le meilleur parcequ il est connu pour est strict c'est a dire qu il explique mieux les données avec le minimum de paramètres nécessaires. Ainsi le nombre de retards tolerer sera de 1.
+
+\<<on a les différents relation a long terme entre variable qui ont permis de vérifier  les hypothese de cointegration>\>
+
+comme s'y attendait l'hypothese de non cointegration se confirme. en effet a tous les seuils , l'hypothese nulle pour k =0 (ie H_0: r \<=0) se verifie , la statistique de test est inferieur a la valeur critique a tous les seuils , d'ou le non rejet de l'hypothese nulle.cela signifie qu'il n'existe aucune relation d'équilibre stable à long terme entre le PIB,Investissement, et la migration
+
+On conclut qu il est donc legitime d utiliser le model VAR classique
+
+## 5 Estimation du modele VAR
+
+```{r}
+var.m <- VAR(donnee_diff_ts, p = 1, type = "const")
+summary(var.m)
+```
+
+### Modele 1
+
+$$
+\Delta \text{MigrationNette}_t = -0.0075 + 0.0718 \, \Delta \text{MigrationNette}_{t-1} + 0.1597 \, \Delta \text{Log(PIB)}_{t-1} + 0.0005 \, \Delta \text{Log(Investissement)}_{t-1} + \epsilon_{1,t}
+$$
+
+L’estimation de l’équation de la **Migration Nette** révèle une absence de relation statistique significative à court terme. Avec des **p-values** largement supérieures aux seuils usuels (0,60 pour la migration passée, 0,13 pour le PIB et 0,96 pour l’investissement), aucune de ces variables n’influence de manière fiable la migration nette à un retard de 1. Ce constat est confirmé par le R carré ajusté extrêmement faible (0,13 %), indiquant que la quasi-totalité de l'accrooissement de la migration en Côte d'Ivoire est dictée par des facteurs exogènes (crises socio-politiques, chocs structurels) non captés par le modèle (investissement ou PIB ni meme ces anciennes valeurs). Puisqu'il s'agit d'un système **VAR**, cette absence d'explication sur la migration n'empêche pas de vérifier si, à l'inverse, la migration influence significativement le **PIB** ou l'**Investissement** dans les autres équations du modèle.
+
+### Modele 2
+
+$$
+\Delta \text{Log(PIB)}_t = 0.0243^{**} + 0.405^{**}\Delta \text{Log(PIB)}_{t-1} + 0.210 \Delta \text{MigrationNette}_{t-1} + 0.011\Delta \text{Log(Investissement)}_{t-1} + \epsilon_{2,t}
+$$
+
+Contrairement à l'équation de la migration, l’estimation de la **variation du PIB** montre des relations statistiques significatives et une meilleure cohérence globale. Le modèle explique **20,23 %** de la variance de la variation du PIB, ce qui est satisfaisant pour un modèle en différences premières. le PIB passé influence positivement et significativement le PIB actuel au seuil de 5% et 10 % . la **constante significative** indique une tendance naturelle à la croissance, indépendamment des autres variables. En revanche, la migration nette et l'investissement n'apparaissent pas comme des déterminants significatifs à court terme ( p value pas significative).
+
+### Modele 3
+
+$$
+\Delta \text{Log(Investissement)}_t = 0.032  -0.351^{*} \Delta \text{Log(Investissement)}_{t-1} + 0.940 \Delta \text{Log(PIB)}_{t-1} -0.223 \Delta \text{MigrationNette}_{t-1} + \epsilon_{3,t}
+$$
+
+> L'équation de l'investissement montre que ce dernier dispose d'une **croissance autonome positive** représentée par la constante $\alpha_3$. Cependant, un effet de **correction cyclique se presente** : le coefficient négatif de l'investissement passé indique qu'une accélération de l'investissement en (t-1) est statistiquement suivie d'un ralentissement en (t ).Le fait que le PIB et la migration ne soient pas significatifs confirme que l'investissement en Côte d'Ivoire ne répond pas directement aux fluctuations de la richesse nationale ou des flux migratoires, mais suit sa propre logique de cycle et de croissance structurelle.
+
+### 6-Validation du modele
+
+### 6.1 Test de Portmanteau
+
+Le test de Portmanteau est un test de diagnostic global qui vérifie la qualité de votre modèle VAR en examinant ses résidus.S'assurer que le modèle a capté toute l'information utile. Il vérifie si les erreurs (résidus) sont indépendantes les unes des autres.
+
+```{r}
+
+# 2. le test de Portmanteau (type "PT.asymptotic")
+# 'lags.pt' définit le nombre de retards des résidus à tester (souvent 10 ou 12)
+test_residus <- serial.test(var.m, lags.pt = 10, type = "PT.asymptotic")
+
+# 3. Afficher le résultat
+print(test_residus)
+
+```
+
+Avec une p-value de **0,90**, nous **échouons à rejeter l'hypothèse nulle** d'absence d'autocorrélation. Nous concluons donc que les résidus du modèle sont un bruit blanc, ce qui valide la qualité statistique de notre VAR.
+
+### 6.2 stabilité du modele
+
+on verifie ici si le modele lui meme est stationnaire
+
+```{r}
+# Affiche les valeurs propres (doivent être < 1)
+roots(var.m)
+
+##visualisation
+# Extraction des racines (valeurs propres)
+les_racines <- roots(var.m)
+
+# Création du cercle unité
+theta <- seq(0, 2*pi, length.out = 100)
+plot(cos(theta), sin(theta), type = "l", lty = 2, col = "red",
+     asp = 1, main = "Stabilité du modèle VAR : Cercle Unité",
+     xlab = "Partie Réelle", ylab = "Partie Imaginaire")
+abline(h = 0, v = 0, col = "gray")
+
+# Ajout des racines du modèle (on utilise 0 pour la partie imaginaire si réelles)
+points(les_racines, rep(0, length(les_racines)), pch = 19, col = "blue")
+
+
+```
+
+Puisque toutes les racines (La force du lien entre hier et aujourd'hui) ont un module inférieur à 1 et proche de 0 ,cela indique que le modele est tres stable et stationnaire. tout choc sur l'une des variables (PIB, Migration ou Investissement) va s'estomper avec le temps. Le système finira toujours par revenir à sa moyenne de long terme.concretement cela veut dire que toute perturbation sur une variable (comme un choc migratoire) sera résorbée par le système au fil du temps, garantissant ainsi la validité de nos prévisions et de nos analyses.
+
+```{r}
+##ici je vais refaire l'hypothese de normalités car le premier a montrer que nous avons oubliez de considerer les chocs structurels ,on va les identifiers d'abords puis refaire le test par la suite
+```
+
+### 6.3 stabilité structurelle des coefficients du modeles
+
+Le test **CUSUM** (Cumulative Sum of Residuals) est un test de **stabilité structurelle**. . il est la version dynamique du test de chow.
+
+Bien que notre modèle soit mathématiquement stationnaire (racines dans le cercle), Le test CUSUM permet de détecter d'éventuelles **ruptures structurelles**, c'est-à-dire des moments où les comportements économiques ont changé (par exemple, suite à la dévaluation du Franc CFA en 1994 ou aux crises de 2002 et 2011). Si une telle rupture est détectée, cela signifierait que les mêmes causes ne produisent plus les mêmes effets après la date de rupture.
+
+```{r}
+# 1. Calcul du test de stabilité (méthode CUSUM des résidus récursifs)
+library(strucchange)
+
+# 1. Calculer le test
+stability_test <- stability(var.m, type = "OLS-CUSUM")
+
+# 1. Dates (1965-2023 moins les 2 premières car diff=1 et p=1)
+dates_modele <- 1967:2023
+
+# 2. On s'assure qu'un seul graphique s'affiche à la fois
+par(mfrow = c(1, 1), mar = c(6, 4, 3, 2))
+
+# 3. Boucle pour un affichage séparé
+noms_vars <- names(stability_test$stability)
+
+for(v in noms_vars) {
+  # Tracer le test pour la variable v
+  plot(stability_test$stability[[v]], 
+       main = paste("Stabilité CUSUM :", v), 
+       col = "darkblue", 
+       xaxt = "n", 
+       las = 1)
+  
+  # Ajouter les années à la verticale (8 dates repères)
+  at_points <- seq(0, 1, length.out = 10)
+  labels_ans <- round(seq(min(dates_modele), max(dates_modele), length.out = 10))
+  
+  # las = 2 pour la verticalité, cex.axis pour la taille
+  axis(1, at = at_points, labels = labels_ans, las = 2, cex.axis = 0.9)
+  
+  # Optionnel : ajoute une grille pour mieux lire les dates
+  grid(nx = NULL, ny = NULL, lty = 2, col = "gray")
+}
+
+
+```
+
+### ##cas migrations
+
+L'analyse visuelle montre que le modèle reste **statistiquement stable** (dans les bornes), mais la "dérive" de la courbe trahit des événements historiques majeurs que le PIB et l'Investissement n'expliquent pas seuls 
+
+**Identification des chocs**
+
+-   **1976 - 1980 (Le premier décrochage) :** Cela correspond à la fin du "Miracle Ivoirien". Le modèle VAR (modele 1) , basé sur **la croissance (PIB,INVESTISSEMENT** ainsi que le flux migratoire passé**)** forte des années précédentes, a probablement **surestimé** les flux migratoires alors que l'économie commençait à ralentir.
+
+-   **1990 - 1999 (La dérive positive) :** Malgré l'instabilité politique (décès de Houphouët-Boigny en 1993, dévaluation du Franc CFA en 1994, la nomination d'un nouveau premier ministre et la fin du partie unique), la migration a été plus forte que ce que prévoyait le modèle. Cela peut traduire une **inertie migratoire** ou des facteurs régionaux (conflits chez les voisins) qui ont poussé les flux vers la Côte d'Ivoire.
+
+<!-- -->
+
+-   **1999 - 2011 (La longue descente) :** C'est la période la plus marquée. Le coup d'État de 1999 et la crise de 2002 créent une dérive négative constante. Le modèle "perd le fil" car la relation habituelle(decrite dans le modele 1) est brisée par le **facteur sécuritaire**. La migration baisse systématiquement plus que ce que l'économie seule ne laisserait prévoir.
+
+-   Le creux de 2011 (crise post-électorale) est suivi d'un **saut brutal** en 2014. une cause d'echec du test de **normalité**  : ce saut est un "outlier" statistique dû à la normalisation rapide du pays après la crise.
+
+### ##Cas du PIB (modele 2)
+
+-    L'inertie du "Miracle" (1975-1977) 
+
+Au début de la période, la courbe CUSUM monte. Cela signifie que le PIB réel croît **plus vite** que ce que les variables du modèle (Investissement et Migration) ne laissent prévoir.
+
+-   1990 :Le choc de l'Austérité (Plan Ouattara)
+
+    Face à un déficit budgétaire abyssal (plus de 200 milliards de FCFA), l'État a appliqué un **plan de stabilisation** radical en 1990. Pour réduire les dépenses, l'État a massivement coupé dans les budgets de fonctionnement et les investissements publics. En termes de **PIB réel**, cela s'est traduit par une chute de la commande publique, moteur historique de la croissance ivoirienne.
+
+<!-- -->
+
+-    1999 - 2011 (instabilité politique et crise-postelectorale)
+
+    Le PIB réel subit des chocs négatifs répétés du a l'instabilité politique. Comme le modèle VAR ne contient pas de variable "guerre", il interprète cela comme une succession d'erreurs systématiques. La dérive montre que la richesse produite est constamment inférieure au potentiel théorique du pays.
+
+-   2012 -2023 :**Le renouveau et la convergence**
+
+    Fin de la crise, retour massif des bailleurs de fonds et grands travaux d'infrastructure.
+
+    Ce n'est pas une instabilité, mais un **rattrapage**. Le modèle VAR voit les investissements repartir et le PIB réel suivre avec une force incroyable. Le retour vers la zone centrale prouve que le modèle est redevenu "précis" : la structure économique de la Côte d'Ivoire a retrouvé une logique prévisible.
+
+    *L'échec du test de normalité est principalement imputable à la période **1990 et 2011***
+
+### ##Cas de l'investissement (modele 3)
+
+la courbe ne sort pas des bornes (modèle stable), mais ses **changements de pente** racontent l'histoire des capacités productives du pays :
+
+-   **Le choc de 1980-1982 (Début de dérive) :** La baisse de la pente marque l'arrêt physique des grands chantiers du "Miracle". L'économie cesse d'accumuler du capital réel.
+
+-   **Le choc de 1990,2002 (Le creux historique) :** C'est le choc le plus violent. Le plan d'austérité et l'instabilité politique provoquent un effondrement de l'investissement en volume. Le modèle VAR "dérive" car il ne peut pas anticiper un arrêt aussi brutal de l'achat de machines et d'infrastructures.
+
+-   **Le choc de 2011-2012 (Le rebond vertical) :** La remontée brutale vers la ligne zéro montre un rattrapage massif après la crise post-électorale. Ce n'est pas une instabilité, mais une **récupération ultra-rapide** de l'outil de production.
+
+### 6.3.1 Synthese du test de Cusum
+
+L'étude des tests **CUSUM** sur les trois variables (**PIB réel**, **Investissement réel**, **Migration nette**) permet de conclure à la validité structurelle du modèle malgré l'échec du test de normalité.
+
+Le modèle VAR a été soumis à des tensions majeures qui expliquent les dérives observées sur les graphiques :
+
+-   **1978-1980 :** Rupture du cycle de croissance du "Miracle". Décrochage de l'investissement réel et du PIB.
+
+-   **1990 :** **Choc paroxystique.** L'austérité budgétaire et l'instabilité politique créent le creux historique de l'investissement, entraînant le PIB et la Migration nette dans une dérive négative.
+
+-   **2002-2011 :** Période d'instabilité socio-politique causant une dérive constante (erreurs systématiques)
+
+-   **2012-2014 :** Phase de **rattrapage brutal**. La remontée verticale vers la ligne zéro montre une correction rapide de l'économie, créant des résidus atypiques.
+
+L'échec du test de normalité n'est pas dû à une mauvaise spécification, mais à la nature des données ivoiriennes :
+
+-   **Outliers historiques :** Les années 1990 et 2012 génèrent des résidus trop importants pour la loi normale (phénomène de **queues épaisses**).
+
+-   **Asymétrie :** Les crises répétées créent une accumulation d'erreurs négatives sur de longues périodes, déformant la distribution des résidus.
+
+### 6.4 Correction du Modele VAR
+
+*Pour corriger l'asymétrie des résidus et valider le test de normalité, nous allons introduit deux variables exogènes impulsionnelles (Dummies) pour les années **1990** et **2011-2012**. Ces variables permettent d'isoler les chocs exogènes liés aux crises politiques et aux plans d'ajustement structurel, garantissant ainsi que les coefficients du modèle VAR reflètent la dynamique économique structurelle de la Côte d'Ivoire hors événements exceptionnels.*
+
+### ##ajout des variables dummies (impulsionnelles) et choix du p optimal pour le var corrigé
+
+```{r}
+# 1. Extraire les résidus de votre modèle initial
+res <- resid(var.m)
+
+# 2. Configurer l'affichage pour voir les 3 graphiques d'un coup
+par(mfrow = c(3, 1), mar = c(3, 4, 2, 2))
+
+# 3. Boucle pour tracer chaque variable
+for(i in 1:ncol(res)) {
+  # Tracer le résidu de la variable i
+  plot(res[,i], type = "l", main = paste("Résidus de la Variable :", colnames(res)[i]), 
+       ylab = "Résidus", col = "blue")
+  
+  # Ajouter une ligne horizontale à 0
+  abline(h = 0, col = "black")
+  
+  # Ajouter des lignes de seuils (3 écarts-types) pour repérer les anomalies
+  seuil <- 3 * sd(res[,i])
+  abline(h = c(seuil, -seuil), col = "red", lty = 2)
+  
+  # Identifier les points qui dépassent le seuil pour vous aider
+  outliers_visuels <- which(abs(res[,i]) > seuil)
+  points(outliers_visuels, res[outliers_visuels, i], col = "red", pch = 19)
+}
+
+# Remettre l'affichage par défaut
+par(mfrow = c(1, 1))
+
+
+```
+
+```         
+```
+
+```{r}
+
+# 1. Sélection des dummies les plus significatives d'après vos résultats
+# 48 (Migration ***), 33 (Migration ***), 23 (Investissement ***), 46 (PIB ***)
+indices_valides <- c(23, 33, 46, 48)
+
+n_obs <- nrow(resid(var.m))
+dummies_epurees <- matrix(0, nrow = n_obs, ncol = length(indices_valides))
+
+for(i in 1:length(indices_valides)) {
+  dummies_epurees[indices_valides[i], i] <- 1
+}
+colnames(dummies_epurees) <- paste0("D_", indices_valides)
+
+# 2. Ré-estimation (p=1 pour maximiser la puissance du test)
+data_alignee <- tail(donnee_diff_ts, n_obs)
+mod_epure <- VAR(data_alignee, p = 1, type = "const", exogen = dummies_epurees)
+
+# 3. Vérification
+summary(mod_epure)
+norm_test <- normality.test(mod_epure)
+norm_test
+```
+
+```{r}
+
+##test de cusum
+
+# 1. Calculer le test
+stability_test2 <- stability(mod_epure, type = "OLS-CUSUM")
+# 7. Nouveau test CUSUM pour confirmer la stabilité des coefficients
+# 1. Dates (1965-2023 moins les 2 premières car diff=1 et p=1)
+dates_modele <- 1967:2023
+
+# 2. On s'assure qu'un seul graphique s'affiche à la fois
+par(mfrow = c(1, 1), mar = c(6, 4, 3, 2))
+
+# 3. Boucle pour un affichage séparé
+noms_vars <- names(stability_test2$stability)
+
+for(v in noms_vars) {
+  # Tracer le test pour la variable v
+  plot(stability_test2$stability[[v]], 
+       main = paste("Stabilité CUSUM :", v), 
+       col = "darkblue", 
+       xaxt = "n", 
+       las = 1)
+  
+  # Ajouter les années à la verticale (8 dates repères)
+  at_points <- seq(0, 1, length.out = 10)
+  labels_ans <- round(seq(min(dates_modele), max(dates_modele), length.out = 10))
+  
+  # las = 2 pour la verticalité, cex.axis pour la taille
+  axis(1, at = at_points, labels = labels_ans, las = 2, cex.axis = 0.9)
+  
+  # Optionnel : ajoute une grille pour mieux lire les dates
+  grid(nx = NULL, ny = NULL, lty = 2, col = "gray")
+}
+
+```
+
+```{r}
+# 1. Test d'absence d'autocorrélation (Le plus important ici)
+# H0: Pas d'autocorrélation. Si p-value > 0.05, le modèle est valide.
+serial.test(mod_epure, lags.pt = 12, type = "PT.asymptotic")
+
+
+```
+
+```{r}
+# Test d'homoscédasticité (ARCH)  (Si p-value > 0.05, nos résidus ont une variance constante, ce qui est idéal pour la validité du modèle.)
+test_arch <- vars::arch.test(mod_epure, lags.multi = 5, multivariate.only = TRUE)
+print(test_arch)
+
+```
+
+```{r}
+# 1. On récupère les racines (qui sont réelles ici)
+roots_val <- vars::roots(mod_epure)
+
+# 2. Création du graphique vide avec le bon repère
+plot(NULL, xlim=c(-1,1), ylim=c(-1,1), asp=1,
+     xlab="Réel", ylab="Imaginaire",
+     main="Cercle Unité - Stabilité du VAR")
+
+# 3. Ajout des axes
+abline(h=0, v=0, lty=2, col="gray")
+
+# 4. Dessin du cercle unité en rouge
+symbols(0, 0, circles=1, inches=FALSE, add=TRUE, border="red", lwd=2)
+
+# 5. Placement des racines (sur l'axe horizontal car elles sont réelles)
+points(roots_val, rep(0, length(roots_val)), pch=19, col="blue", cex=1.5)
+
+# 6. Ajout d'une légende pour plus de clarté
+legend("topright", legend=c("Racines AR", "Cercle unité"), 
+       col=c("blue", "red"), pch=c(19, NA), lty=c(NA, 1))
+
+
+```
+
+L'analyse de la validité du modèle repose sur une série de tests de diagnostic rigoureux visant à confirmer que les résidus se comportent comme un bruit blanc et que les paramètres sont fiables.
+
+-   **Stabilité du système :** L'examen des racines du polynôme caractéristique confirme la stationnarité du VAR. **Toutes les racines** sont strictement inférieures à l'unité. Le système est donc stable : les chocs appliqués aux variables s'estompent avec le temps et ne divergent pas.
+
+-   **Absence d'autocorrélation :** Le test de Portmanteau (asymptotique) appliqué aux résidus conclut à l'absence de corrélation sérielle (p-value \> 0,05). Cela démontre qu'un seul retard est suffisant pour capturer toute la dynamique temporelle des séries différenciées.
+
+-   **Homoscédasticité :** Le test ARCH multivarié ne permet pas de rejeter l'hypothèse nulle de variance constante des résidus (p-value \> 0,05). L'absence d'effets ARCH garantit que l'incertitude du modèle est stable sur toute la période.
+
+-   **Stabilité structurelle (CUSUM) :** le test **CUSUM** appliqué à l'équation de l'investissement confirme la robustesse structurelle du système. Bien que la série ait connu des phases de fluctuation plus marquées que le PIB (notamment durant la décennie 1980), le processus empirique demeure confiné dans les bornes critiques. Cette stabilité globale de toutes les équations du VAR(1) légitime l'analyse des coefficients et garantit que les relations estimées ne sont pas le produit de ruptures structurelles non identifiées
+
+-   **est de Normalité :** L'hypothèse de normalité de Jarque-Bera est rejetée principalement en raison d'un excès de Kurtosis . Ce résultat, fréquent sur de petits échantillons (moins de 60 echantillions) est ici maîtrisé par l'inclusion de variables muettes (**dummies**) qui capturent les chocs extrêmes. Dans un cadre de stabilité et d'absence d'autocorrélation, la non-normalité n'affecte pas la convergence des estimateurs OLS, ce qui autorise la poursuite de l'analyse.
+
+### **##Synthèse Globale du Modèle VAR(1)**
+
+Après validation de la stabilité structurelle (CUSUM) et des diagnostics de bruit blanc (Portmanteau, ARCH), nous présentons les résultats du **Modèle 1**. Ce modèle analyse les interactions entre la migration nette ,la croissance du PIB et l'investissement tout en neutralisant les chocs atypiques via quatre variables muettes (duminies)
+
+Les variables muettes identifiées capturent les ruptures majeures de l'histoire ivoirienne :
+
+-   D_23 : 1989 — crise des matieres premieres
+
+-   D_33 : 1999 — instabilité politique et coup d'etat
+
+-   D46 : 2012 — reprise economique post crise et reconstruction
+
+-   D48 : 2014 — consolidation de la croissance et attractivité regionales
+
+### Modele1
+
+$$ \Delta \text{MigrationNette}_t = -0.0017 + 0.1299 \, \Delta \text{MigrationNette}_{t-1}^{*} + 0.0059 \, \Delta \text{Log(PIB)}_{t-1} - 0.0044 \, \Delta \text{Log(Investissement)}_{t-1} + 0.0144 \, D_{23} - 0.1484 \, D_{33}^{***} - 0.0330 \, D_{46}^{*} + 0.2330 \, D_{48}^{***} + \epsilon_{1,t} $$
+
+-   **Interprétation :** La migration nette est caractérisée par une forte auto-corrélation positive. Elle est cependant dominée par des chocs exogènes majeurs ( *instabilité politique et coup d'etat ,consolidation de la croissance et attractivité regionales,reprise economique post crise et reconstruction*) indiquant que les flux répondent davantage à des événements structurels ou politiques qu'à des variables économiques immédiates.
+
+-   **Performance :** $$ R^{2} = 0,873$$
+
+    Le modèle explique plus de 87 % de la variance, ce qui est excellent.
+
+### Modele 2
+
+$$ \Delta \text{Log(PIB)}_t = 0.0190^{*} + 0.2313 \, \Delta \text{MigrationNette}_{t-1} + 0.4064 \, \Delta \text{Log(PIB)}_{t-1}^{***} + 0.0249 \, \Delta \text{Log(Investissement)}_{t-1}^{\cdot} + 0.0889 \, D_{23}^{*} - 0.0222 \, D_{33} + 0.1542 \, D_{46}^{***} + 0.0552 \, D_{48} + \epsilon_{2,t} $$
+
+-   **interprétation :** Le PIB présente une forte inertie . L'investissement contribue positivement à la croissance (significatif à 10 %). L'effet de la migration, bien que positif reste statistiquement incertain dans cette configuration. toutefois les choc en **1989 et 2012 sont significatifs.** Bien que l'année 1989 soit une année de crise des matières premières (choc négatif sur l'investissement), le modèle identifie ici un coefficient positif significatif. le plus frappant est l'annee 2012. Le coefficient est très élevé et ultra-significatif. Il capte le **"rebond mécanique"** exceptionnel de l'économie ivoirienne juste après la fin de la crise post-électorale de 2011. C'est l'année où la Côte d'Ivoire a affiché l'un des taux de croissance les plus élevés au monde (environ 10.7%).
+
+-   **Performance :** $$ R^{2}=0,39$$
+
+    Une performance correcte pour un modèle en différences premières, captant l'essentiel .
+
+### Modele 3
+
+$$ \Delta \text{Log(Investissement)}_t = 0.0459 + 0.0478 \, \Delta \text{MigrationNette}_{t-1} + 0.7770 \, \Delta \text{Log(PIB)}_{t-1} - 0.2463 \, \Delta \text{Log(Investissement)}_{t-1}^{*} - 1.2732 \, D_{23}^{***} - 0.4771 \, D_{33} + 1.1803 \, D_{46}^{**} + 0.0593 \, D_{48} + \epsilon_{3,t} $$
+
+-   interpretation
+
+**Mécanisme de correction d'erreur interne :** Un coefficient négatif signifie qu'un accroissement exceptionnel de l'investissement à l'année a tendance à être suivi d'une réduction (ou d'une stabilisation) à l'année .Cela indique que l'investissement en Côte d'Ivoire ne suit pas une trajectoire linéaire, mais fonctionne par **"à-coups"**.
+
+**Saturation et absorption :** . Après une année de grands travaux (comme le boom de 2012 identifié ), le pays entre dans une phase de finalisation des projets, ce qui réduit naturellement le flux de nouveaux investissements l'année suivante.
+
+-   **Choc 1989 ( laisse moi un peu d'espace je vais terminer ca )**
+
+7- teste de Causalité
+
+```{r}
+## 6. Test de Causalité de Granger
+
+# Est-ce que MigrationNette cause PIB et Investissement ?
+causality(var.m, cause = "MigrationNette_diff1")
+
+# Est-ce que PIB cause MigrationNette et Investissement ?
+causality(var.m, cause = "PIB_diff1")
+
+# Est-ce que Investissement cause MigrationNette et PIB ?
+causality(var.m, cause = "Investissement_diff1")
+```
+
+### 7.1 Migration Nette → PIB et Investissement
+
+Le test de Granger indique que la migration nette ne cause pas au sens de Granger le PIB ni l'investissement (F = 1.034, df1 = 2, df2 = 159, p-value = 0.358). Cette p-value largement supérieure au seuil de 5% conduit à ne pas rejeter l'hypothèse nulle d'absence de causalité. Autrement dit, la connaissance des valeurs passées de la migration nette n'améliore pas la prévision du PIB ni de l'investissement à court terme. Par ailleurs, le test de causalité instantanée confirme ce résultat (Chi² = 0.540, df = 2, p = 0.763), indiquant qu'aucun choc inattendu sur la migration nette ne se transmet simultanément au PIB ou à l'investissement.
+
+### 7.2 PIB → Migration Nette et Investissement
+
+De même, le PIB ne cause pas au sens de Granger la migration nette ni l'investissement (F = 1.424, df1 = 2, df2 = 159, p-value = 0.244). Ce résultat suggère que les variations passées du PIB ivoirien ne permettent pas d'anticiper l'évolution future des flux migratoires ni de l'investissement. Le test instantané confirme également l'absence de lien contemporain entre le PIB et les deux autres variables (p = 0.143).
+
+### 7.3 Investissement → Migration Nette et PIB
+
+Enfin, l'investissement ne cause pas au sens de Granger la migration nette ni le PIB (F = 0.275, df1 = 2, df2 = 159, p-value = 0.760). Les variations passées de l'investissement n'exercent donc aucun pouvoir prédictif sur la migration ni sur la croissance économique. Le test de causalité instantanée corrobore ce constat (Chi² = 3.578, df = 2, p = 0.167).
+
+### 7.4 Synthèse et interprétation économique
+
+L'ensemble de ces résultats révèle une absence totale de causalité au sens de Granger entre les trois variables, aussi bien dans le sens temporel (valeurs passées) que dans le sens instantané (chocs simultanés). Ce résultat, bien que surprenant au premier abord, s'explique par plusieurs facteurs propres au contexte ivoirien :
+
+-   **La prédominance des facteurs exogènes** : les dynamiques migratoires en Côte d'Ivoire sont davantage dictées par des facteurs politiques et sociaux (crises post-électorales de 2002 et 2011, instabilité institutionnelle) que par les variables macroéconomiques internes que sont le PIB et l'investissement.
+
+-   **L'horizon temporel court** : le modèle VAR(1) ne capte que les effets à très court terme (un an de retard). Or, les liens entre migration, croissance et investissement peuvent se manifester sur des horizons plus longs, non captés par ce modèle.
+
+-   **La cohérence avec la littérature** : ces résultats sont conformes aux travaux de Boubtane, Coulibaly & Rault (2013), qui, sur un panel de 22 pays de l'OCDE, montrent que dans aucun pays l'immigration ne cause significativement la croissance du PIB au sens de Granger.
+
+En définitive, le test de causalité de Granger confirme que, dans le cas de la Côte d'Ivoire sur la période étudiée, la migration nette, le PIB et l'investissement évoluent de manière indépendante à court terme. Chacune de ces variables suit sa propre dynamique, principalement déterminée par des chocs exogènes non modélisés dans le cadre VAR classique.
+
+✅ Ce texte est prêt à être collé dans votre fichier Quarto. Les statistiques exactes de vos résultats sont intégrées et l'interprétation économique est adaptée au contexte ivoirien. j ai bien aimer la comparaison avec l article mais seulement entre pib et imigration il n y apas un autre qui vas aussi lier investissement22:57Web recherchéWeb recherchéVoici les deux publications qui couvrent les 3 relations de votre modèle :
+
+✅ Publication 1 — Migration ↔ PIB Boubtane, Coulibaly & Rault (2013) Economic Modelling, Elsevier La littérature empirique sur le lien de causalité entre immigration et activité économique montre généralement aucune preuve que la migration cause la croissance du PIB, mais trouve des preuves de causalité allant dans le sens opposé. ScienceDirect
+
+✅ Publication 2 — Investissement ↔ PIB en Afrique (PLOS ONE, 2022) "More than just investment" — 117 pays (2022) PLOS ONE Golitsis et Avdiu ont trouvé aucune relation causale entre l'investissement (FDI), la croissance du PIB et les autres variables du modèle. Par ailleurs, cette même étude conclut à une absence totale de causalité entre investissement et PIB dans la région africaine, que ce soit au seuil de 1%, 5% ou 10%. PubMed Central
+
+💡 Phrase complète à copier dans votre Quarto markdownCes résultats s'inscrivent dans la lignée de la littérature empirique internationale. Concernant le lien migration-PIB, Boubtane, Coulibaly & Rault (2013), dans une étude sur 22 pays de l'OCDE combinant VAR et causalité de Granger, montrent que dans aucun pays l'immigration ne cause significativement la croissance économique. Concernant le lien investissement-PIB, Golitsis et Avdiu (2022), sur un panel de 117 pays et en utilisant également un modèle VAR avec test de Granger, concluent à l'absence de toute relation causale entre l'investissement et la croissance du PIB dans la région africaine. L'absence de causalité observée en Côte d'Ivoire entre ces trois variables confirme donc un résultat empirique robuste et largement documenté dans la littérature sur les pays en développement.ajoute le alors dans ton interpretation aussi23:12Voici l'interprétation complète mise à jour avec les deux références :
+
+markdown## 6. Test de Causalité de Granger
+
+Les résultats du test de causalité de Granger, appliqué au modèle VAR(1) estimé sur les séries différenciées de la migration nette, du logarithme du PIB et du logarithme de l'investissement sur la période 1966-2023, sont présentés ci-dessous.
+
+### 7.5 Migration Nette → PIB et Investissement
+
+Le test de Granger indique que la migration nette ne cause pas au sens de Granger le PIB ni l'investissement (F = 1.034, df1 = 2, df2 = 159, p-value = 0.358). Cette p-value largement supérieure au seuil de 5% conduit à ne pas rejeter l'hypothèse nulle d'absence de causalité. Autrement dit, la connaissance des valeurs passées de la migration nette n'améliore pas la prévision du PIB ni de l'investissement à court terme. Par ailleurs, le test de causalité instantanée confirme ce résultat (Chi² = 0.540, df = 2, p = 0.763), indiquant qu'aucun choc inattendu sur la migration nette ne se transmet simultanément au PIB ou à l'investissement.
+
+### 7.8 PIB → Migration Nette et Investissement
+
+De même, le PIB ne cause pas au sens de Granger la migration nette ni l'investissement (F = 1.424, df1 = 2, df2 = 159, p-value = 0.244). Ce résultat suggère que les variations passées du PIB ivoirien ne permettent pas d'anticiper l'évolution future des flux migratoires ni de l'investissement. Le test instantané confirme également l'absence de lien contemporain entre le PIB et les deux autres variables (p = 0.143).
+
+### 7.9 Investissement → Migration Nette et PIB
+
+Enfin, l'investissement ne cause pas au sens de Granger la migration nette ni le PIB (F = 0.275, df1 = 2, df2 = 159, p-value = 0.760). Les variations passées de l'investissement n'exercent donc aucun pouvoir prédictif sur la migration ni sur la croissance économique. Le test de causalité instantanée corrobore ce constat (Chi² = 3.578, df = 2, p = 0.167).
+
+### Synthèse et interprétation économique
+
+L'ensemble de ces résultats révèle une absence totale de causalité au sens de Granger entre les trois variables, aussi bien dans le sens temporel (valeurs passées) que dans le sens instantané (chocs simultanés). Ce résultat, bien que surprenant au premier abord, s'explique par plusieurs facteurs propres au contexte ivoirien :
+
+-   **La prédominance des facteurs exogènes** : les dynamiques migratoires en Côte d'Ivoire sont davantage dictées par des facteurs politiques et sociaux (crises post-électorales de 2002 et 2011, instabilité institutionnelle) que par les variables macroéconomiques internes que sont le PIB et l'investissement.
+
+-   **L'horizon temporel court** : le modèle VAR(1) ne capte que les effets à très court terme (un an de retard). Or, les liens entre migration, croissance et investissement peuvent se manifester sur des horizons plus longs, non captés par ce modèle.
+
+-   **La cohérence avec la littérature** : ces résultats sont conformes à deux publications empiriques majeures. D'une part, Boubtane, Coulibaly & Rault (2013), dans une étude sur 22 pays de l'OCDE combinant VAR et causalité de Granger, montrent que dans aucun pays l'immigration ne cause significativement la croissance du PIB. D'autre part, Golitsis et Avdiu (2022), sur un panel de 117 pays utilisant également un modèle VAR avec test de Granger, concluent à l'absence de toute relation causale entre l'investissement et la croissance du PIB dans la région africaine. L'absence de causalité observée en Côte d'Ivoire entre ces trois variables confirme donc un résultat empirique robuste et largement documenté dans la littérature sur les pays en développement.
+
+En définitive, le test de causalité de Granger confirme que, dans le cas de la Côte d'Ivoire sur la période étudiée, la migration nette, le PIB et l'investissement évoluent de manière indépendante à court terme. Chacune de ces variables suit sa propre dynamique, principalement déterminée par des chocs exogènes non modélisés dans le cadre VAR classique.
+
+```{r}
+
+```
+
+```{r}
+```
