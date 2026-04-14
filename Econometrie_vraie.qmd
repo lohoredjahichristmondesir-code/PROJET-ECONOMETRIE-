@@ -1194,9 +1194,10 @@ une trajectoire linéaire, mais fonctionne par **"à-coups"**.
 **Saturation et absorption :** . Après une année de grands travaux
 (comme le boom de 2012 identifié ), le pays entre dans une phase de
 finalisation des projets, ce qui réduit naturellement le flux de
-nouveaux investissements l'année suivante.
-
--   **Choc 1989 ( laisse moi un peu d'espace je vais terminer ca )**
+nouveaux investissements l'année suivante. Toutefois la variation de
+l'investissement est en partie expliquée de facon significative par
+**la** **crise des matieres premieres en 1989 et la** **reprise
+economique post-crise** en **2012**
 
 7- teste de Causalité
 
@@ -1249,45 +1250,381 @@ prédictif sur la migration ni sur la croissance économique. Le test de
 causalité instantanée corrobore ce constat (Chi² = 4.100, df = 2, p =
 0.129).
 
-### 7.4 Synthèse et interprétation économique
-
-L'ensemble de ces résultats révèle une absence totale de causalité au
-sens de Granger entre les trois variables, aussi bien dans le sens
-temporel (valeurs passées) que dans le sens instantané (chocs
-simultanés). Ce résultat s'explique par plusieurs facteurs propres au
-contexte ivoirien :
-
--   **La prédominance des facteurs exogènes** : les dynamiques
-    migratoires en Côte d'Ivoire sont davantage dictées par des facteurs
-    politiques et sociaux (crises post-électorales de 2002 et 2011,
-    instabilité institutionnelle) que par les variables macroéconomiques
-    internes que sont le PIB et l'investissement.
-
--   **L'horizon temporel court** : le modèle VAR épuré ne capte que les
-    effets à très court terme. Or, les liens entre migration, croissance
-    et investissement peuvent se manifester sur des horizons plus longs,
-    non captés par ce modèle.
-
--   **La cohérence avec la littérature** : ces résultats sont conformes
-    à deux publications empiriques majeures. D'une part, Boubtane,
-    Coulibaly & Rault (2013), dans une étude sur 22 pays de l'OCDE
-    combinant VAR et causalité de Granger, montrent que dans aucun pays
-    l'immigration ne cause significativement la croissance du PIB.
-    D'autre part, Golitsis et Avdiu (2022), sur un panel de 117 pays
-    utilisant également un modèle VAR avec test de Granger, concluent à
-    l'absence de toute relation causale entre l'investissement et la
-    croissance du PIB dans la région africaine.
-
-En définitive, le test de causalité de Granger confirme que, dans le cas
-de la Côte d'Ivoire sur la période étudiée, la migration nette, le PIB
-et l'investissement évoluent de manière indépendante à court terme.
-Chacune de ces variables suit sa propre dynamique, principalement
-déterminée par des chocs exogènes non modélisés dans le cadre VAR
-classique.
+### 7.4 causalité globale  inverse 
 
 ```{r}
+# H0: (Migration AND Investissement) do not Granger-cause PIB
+causality(mod_epure, cause = c("MigrationNette_diff1", "Investissement_diff1"))
+
+# H0: (Migration AND PIB) do not Granger-cause Investissement
+causality(mod_epure, cause = c("MigrationNette_diff1", "PIB_diff1"))
+
+# H0: (PIB AND Investissement) do not Granger-cause migration 
+causality(mod_epure, cause = c("PIB_diff1", "Investissement_diff1"))
+
+
 
 ```
 
+les tests de causalité de Granger révèlent une relation
+unidirectionnelle. Si le PIB ne semble pas influencer les flux
+migratoires et l'investissement, on observe en revanche **que la
+migration nette et l'investissement exercent une influence conjointe
+significative sur la croissance du PIB** (p-value = 0,045)
+
+### 7.5 causalité individuel 
+
 ```{r}
+library(lmtest)
+
+# 1. Migration cause-t-elle le PIB ?
+grangertest(PIB_diff1 ~ MigrationNette_diff1, order = 2, data = donnee_diff_ts)
+
+# 2. Investissement cause-t-il le PIB ?
+grangertest(PIB_diff1 ~ Investissement_diff1, order = 2, data = donnee_diff_ts)
+
+# 3. Le PIB cause-t-il la Migration ? (Sens inverse)
+grangertest(MigrationNette_diff1 ~ PIB_diff1, order = 2, data = donnee_diff_ts)
+
+# 4. Le PIB cause-t-il l'Investissement ? (Sens inverse)
+grangertest(Investissement_diff1 ~ PIB_diff1, order = 2, data = donnee_diff_ts)
+
+# 5. Migration cause-t-elle l'Investissement ?
+grangertest(Investissement_diff1 ~ MigrationNette_diff1, order = 2, data = donnee_diff_ts)
+
+# 6. L'Investissement cause-t-il la Migration ?
+grangertest(MigrationNette_diff1 ~ Investissement_diff1, order = 2, data = donnee_diff_ts)
+
 ```
+
+L'analyse des causalités par paire révèle une dynamique spécifique :
+l'investissement exerce une influence significative sur la migration
+nette (p = 0,024), **suggérant que les flux migratoires réagissent aux
+cycles d'investissement**. Bien qu'individuellement la migration et
+l'investissement ne causent pas directement le PIB, leur action
+conjointe s'avère être un déterminant significatif de la croissance
+économique
+
+### 7.6 Synthèse et interprétation économique
+
+#### ##synthese
+
+L'examen de la dynamique du modèle a été effectué à trois niveaux : la
+causalité jointe, les causalités individuelles (paires) et la causalité
+instantanée.
+
+**1. Causalité Jointe (Le Système)**
+
+Le résultat le plus significatif concerne l'explication du PIB.
+
+-   **Résultat :** Le bloc {**Migration Nette** ,**Investissement** }
+    cause au sens de Granger le **PIB** ( p value = 0.045).
+
+-   **Interprétation :** Prises ensemble, les variables de flux
+    migratoires et le taux d'investissement **possèdent un pouvoir
+    prédictif réel** sur la croissance économique. En revanche, le PIB
+    ne cause pas le bloc {Migration, Investissement} ( p-value=0.739).
+    La relation est donc **unidirectionnelle**.
+
+**2. Causalités Individuelles (Les Paires)**
+
+Pour comprendre ce qui "pousse" le système, les tests par paires ont
+révélé une structure en cascade :
+
+-   **Investissement cause au sens de granger la
+    ![](data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==)Migration
+    Nette ( p value=0,024) :** C'est la relation individuelle la plus
+    forte. L'investissement précède statistiquement les mouvements
+    migratoires (au seuil de 5%)
+
+-   **Migration et Investissement ne cause pas individuellement au sens
+    de Granger le PIB .**
+
+    Cela suggère un **effet de synergie** ou de médiation :
+    l'investissement impacte la migration, et c'est leur mouvement
+    conjoint qui finit par influencer le PIB.
+
+**3. Causalité Instantanée**
+
+-   **Résultat :** Aucun test n'est significatif au seuil de 5%.
+
+-   **Interprétation :** Il n'y a pas de corrélation immédiate (dans la
+    même période T) entre les variables. Toutes les relations passent
+    par des **effets de retard** (Lags). Cela justifie l'utilisation du
+    modèle VAR pour capturer la transmission temporelle des chocs.
+
+    #### ##interpretations economique  
+
+    (seul les tests IFR pourront confirmer cela, test que nous feront
+    dans la suite )
+
+    **1. La Synergie (Mig + Invest) cause le PIB**
+
+    Pourquoi le PIB ne réagit-il qu'au "bloc" et pas aux variables
+    seules ?
+
+    -   **Le Modèle de Croissance :** En Côte d'Ivoire, l'investissement
+        seul (machines, routes) sans main-d'œuvre pour les exploiter, ou
+        la migration seule sans capital pour créer des emplois, ne
+        suffisent pas à doper le PIB.
+
+    -   **La complémentarité :** La croissance ivoirienne est extensive.
+        Elle repose sur le mariage entre le **capital** (investissement)
+        et le **travail** (migration, souvent dans le secteur agricole
+        ou le BTP). C'est pour cela que le test de causalité jointe est
+        significatif : c'est le "mix" des deux qui crée la richesse.
+
+    **2. Pourquoi le PIB ne cause pas le reste ?**
+
+    Le fait que le PIB ne cause pas la migration ou l'investissement
+    suggère que la Côte d'Ivoire est dans une dynamique d'**offre**. Ce
+    n'est pas la richesse accumulée qui attire, c'est l'opportunité
+    d'investissement immédiat qui déclenche le cycle.
+
+### 8  **fonctions de réponse impulsionnelle** 
+
+Les Fonctions de Réponse Impulsionnelle (IRF) Elles mesurent la réaction
+d'une variable à un "choc" (une hausse soudaine) d'une autre variable.
+
+Le test : On simule, par exemple, une augmentation imprévue de la
+Migration et l'investissement en Côte d'Ivoire.
+
+L'observation : On regarde sur un graphique si le PIB augmente ou
+diminue dans les 5 à 10 années qui suivent. L'intérêt : Déterminer si
+l'impact est positif ou négatif, et s'il est passager (le PIB revient à
+son niveau initial) ou permanent (le PIB se stabilise à un niveau plus
+haut).
+
+### IRF : Choc de l'Investissement -\> Réponse de la Migration
+
+```{r}
+# IRF : Choc de l'Investissement -> Réponse de la Migration
+irf_inv_mig <- irf(mod_epure, 
+                   impulse = "Investissement_diff1", 
+                   response = "MigrationNette_diff1", 
+                   n.ahead = 10,   # Analyse sur 10 ans
+                   boot = TRUE,    # Intervalle de confiance par bootstrap car le test de normalité a echoué
+                   ci = 0.95)      # Seuil de 95% ie marge d'erreur 5%
+
+plot(irf_inv_mig, main = "Réponse de la Migration à un choc d'Investissement")
+
+```
+
+L'analyse de la fonction de réponse impulsionnelle (IRF) suggère une
+tendance négative de la migration nette deux ans après un choc
+d'investissement. Toutefois, cet impact n'est pas statistiquement
+significatif au seuil de 95%, car l'intervalle de confiance englobe la
+ligne du zéro. Cela indique que, malgré la causalité de Granger
+identifiée, l'effet dynamique reste marqué par une forte incertitude.
+
+###  IRF :choc (INVESTISSEMENT,MIGRATIONS) -\> Réponse du PIB
+
+```{r}
+
+# A. Choc de l'Investissement sur le PIB  sur 10 
+irf_inv_pib <- irf(mod_epure, 
+                   impulse = "Investissement_diff1", 
+                   response = "PIB_diff1", 
+                   n.ahead = 10, boot = TRUE, ci = 0.95)
+
+# B. Choc de la Migration sur le PIB
+irf_mig_pib <- irf(mod_epure, 
+                   impulse = "MigrationNette_diff1", 
+                   response = "PIB_diff1", 
+                   n.ahead = 10, boot = TRUE, ci = 0.95)
+
+# Affichage des graphiques
+plot(irf_inv_pib, main = "Réponse du PIB à un choc d'Investissement")
+plot(irf_mig_pib, main = "Réponse du PIB à un choc de Migration")
+
+```
+
+La lecture croisée des deux graphiques confirme les résultats du test de
+causalité jointe : si l'investissement et la migration n'exercent pas
+d'impacts individuels robustes sur le PIB (les intervalles de confiance
+englobant le zéro), c'est leur **action simultanée** qui est motrice.
+L'investissement fournit le capital nécessaire, tandis que la migration
+fournit la force de travail. Dans le contexte ivoirien (1965-2023), l'un
+ne va pas sans l'autre pour générer une croissance statistiquement
+prédictible. analysons la part de chacun exactement via le test suivant
+
+###  **9 Décomposition de la variance**
+
+ La Décomposition de la Variance de l'Erreur (FEVD) Elle mesure la part
+de responsabilité de chaque variable dans les variations des autres.
+exemple: La question : "Sur 100% des fluctuations du PIB ivoirien,
+quelle part est due à la Migration et quelle part est due à
+l'Investissement ?"
+
+```{r}
+
+# 1. Calcul de la FEVD
+fevd_res <- vars::fevd(mod_epure, n.ahead = 10)
+
+# 2. Configuration (Ordre : Mig = Orange, PIB = Bleu, Invest = Vert)
+mes_couleurs <- c("orange", "lightblue", "lightgreen")
+noms_vars <- c("MigrationNette_diff1", "PIB_diff1", "Investissement_diff1")
+
+# On définit une marge large pour la légende à droite
+par(mar = c(5, 4, 4, 12), xpd = TRUE)
+
+# --- GRAPHIQUE 1 : LE PIB ---
+barplot(t(fevd_res$PIB_diff1), 
+        main = "Sources de variation du PIB",
+        xlab = "Horizon (Années)", ylab = "Proportion",
+        col = mes_couleurs, border = "white")
+legend("topright", inset = c(-0.45, 0), legend = noms_vars, fill = mes_couleurs, bty = "n")
+
+# --- GRAPHIQUE 2 : LA MIGRATION ---
+# (Faites défiler vos graphiques dans RStudio avec les flèches 'Back' et 'Forward')
+barplot(t(fevd_res$MigrationNette_diff1), 
+        main = "Sources de variation de la Migration Nette",
+        xlab = "Horizon (Années)", ylab = "Proportion",
+        col = mes_couleurs, border = "white")
+legend("topright", inset = c(-0.45, 0), legend = noms_vars, fill = mes_couleurs, bty = "n")
+
+# --- GRAPHIQUE 3 : L'INVESTISSEMENT ---
+barplot(t(fevd_res$Investissement_diff1), 
+        main = "Sources de variation de l'Investissement",
+        xlab = "Horizon (Années)", ylab = "Proportion",
+        col = mes_couleurs, border = "white")
+legend("topright", inset = c(-0.45, 0), legend = noms_vars, fill = mes_couleurs, bty = "n")
+
+
+
+```
+
+#### **#La décomposition de la variance du PIB**
+
+elle confirme que le PIB ivoirien possède une forte composante
+autocorrélée, le passé de la croissance expliquant l'essentiel de sa
+variance actuelle. Toutefois, conformément au test de causalité jointe
+la migration nette et l’investissement apportent une contribution stable
+à l’explication de la richesse nationale.
+
+Un fait stylisé majeur émerge de cette dynamique temporelle : **la
+migration nette exerce une influence immédiate** sur la variance du PIB
+dès la première année, tandis que l’effet de l’investissement ne devient
+perceptible qu’à partir de la deuxième période. Cela souligne le rôle de
+la main-d’œuvre comme facteur de réaction rapide dans l’économie
+ivoirienne (secteurs agricole et informel), complété dans un second
+temps par les retombées de l’accumulation de capital.Il convient
+toutefois de noter que l'influence de ces deux moteurs semble modeste en
+pourcentage pur (quelques %). Ce résultat s'explique par l'introduction
+des **variables *dummies*** (`D_46`, `D_23`, etc.) qui, en captant les
+chocs de croissance les plus brutaux de l'histoire ivoirienne, ont
+mécaniquement réduit la part de variance restant à expliquer pour les
+variables endogènes. Dès lors, la migration et l'investissement ne
+représentent pas des facteurs négligeables, mais bien le **levier
+exogène structurel** sur lequel l'État peut agir pour influencer la
+trajectoire économique de fond, une fois les crises conjoncturelles
+neutralisées.
+
+#### **#la Décomposition de la Variance de la Migration Nette**
+
+Le graphique révèle une **forte inertie structurelle** : la migration
+nette s'explique à plus de 95 % par son propre passé, soulignant le
+poids des réseaux migratoires établis depuis 1965.
+
+L'**investissement** (bande verte) confirme son rôle de moteur en étant
+le seul facteur endogène à influencer la migration, validant ainsi le
+test de Granger La part expliquée reste faible car les **variables
+dummies** ont absorbé les chocs historiques majeurs (crises,
+dévaluation), ne laissant apparaître ici que la relation structurelle de
+fond. En résumé, s'il n' y a pas de crise majeur endogenes ou exogene a
+la cote d'ivoire (choses captes par les duminies du modele corrigés ) ,
+l'investissement est le levier clé de fond pour moduler une dynamique
+migratoire par ailleurs très autonome.
+
+#### **#la Décomposition de la Variance de l'investissement** 
+
+L'investissement s'impose comme la variable la plus **autonome** du
+modèle, s'expliquant à plus de 90 % par lui-même. Cependant, deux
+nuances majeures ressortent :
+
+-   **L'influence du PIB :** Bien que la prédictibilité n'ait pas été
+    confirmée par le test de Granger le **PIB** (bande bleue) explique
+    environ 8 % de la variance de l'investissement dès la première
+    année. Cela traduit une **corrélation instantanée** : en Côte
+    d'Ivoire, l'investissement réagit immédiatement à l'état de
+    l'économie, même si le PIB passé ne permet pas de prédire les
+    investissements futurs.
+
+-   **Le rôle des *Dummies* :** La domination massive de
+    l'auto-explication (zone verte) est renforcée par l'utilisation des
+    variables *dummies* . En captant les ruptures brutales et les chocs
+    de politique économique, ces variables exogènes ont "nettoyé" la
+    variance de l'investissement. Ce qui reste visible graphiquement est
+    la dynamique structurelle de fond, où l'investissement agit comme le
+    **moteur indépendant** du système, insensible aux flux migratoires
+    mais légèrement lié à la richesse nationale.
+
+#Synthese de la decomposition
+
+1.  **Une économie à forte inertie structurelle** : Le résultat le plus
+    frappant est que chaque variable reste dominée par son propre passé
+    (souvent plus de 90 %). Cela signifie que l'économie ivoirienne suit
+    des trajectoires de fond très lourdes, où les tendances de l'année
+    précédente dictent largement celles de l'année en cours.
+
+2.  **L'Investissement est le "Premier Moteur"** : il est un **moteur
+    alimenté par le PIB et protégé (ou frappé) par les chocs
+    structurels.** Il n'est pas causé par la migration, mais c'est lui
+    qui "mord" sur la variance des autres. Il attire la main-d'œuvre et
+    participe à la richesse nationale. C'est le déclencheur de la
+    dynamique du modèle.
+
+3.  **La preuve de la synergie (Le "Mix" Ivoirien)** : La FEVD confirme
+    ce que les tests de Granger suggéraient : si la migration ou
+    l'investissement seuls semblent avoir un poids modeste (quelques %),
+    leur présence simultanée dans la variance du PIB prouve qu'ils sont
+    les deux piliers complémentaires de la croissance. La migration
+    réagit vite (dès l'année 1), et l'investissement consolide l'effet
+    (année 2+).
+
+### Bilan du modele Var et causalité au sens de granger 
+
+**1. Solidité et Structure**
+
+Le modèle est **statistiquement robuste** car il a passé avec succès les
+tests de stabilité et d’absence d’autocorrélation.
+
+-   **Le rôle des Dummies :** L'intégration de variables muettes a été
+    déterminante. Elles ont capté les chocs historiques (crises,
+    dévaluation), permettant d'isoler la **relation structurelle de
+    fond** entre vos variables.
+
+-   **Inertie et Persistance :** Le modèle révèle une économie
+    ivoirienne marquée par une forte autocorrélation. Les variables
+    dépendent à plus de 90 % de leur propre passé, ce qui témoigne de la
+    résilience des dynamiques économiques et migratoires.
+
+**2. Bilan de la Causalité au sens de Granger**
+
+L'analyse révèle une dynamique **unidirectionnelle en cascade** plutôt
+qu'une boucle de rétroaction :
+
+-   **L'Investissement comme impulsion :** C’est le premier levier du
+    système. Il cause la Migration Nette, confirmant qu'en Côte
+    d'Ivoire, les flux de capitaux précèdent et attirent les flux de
+    main-d’œuvre.
+
+-   **La Synergie productive :** Prises isolément, la migration et
+    l'investissement ne causent pas le PIB. C'est leur **action
+    conjointe** qui est significative. Cela démontre que la croissance
+    ivoirienne est extensive : elle nécessite l'apport simultané de
+    capital et de travail pour se réaliser.
+
+-   **Absence de causalité inverse :** Le PIB ne cause pas
+    l'investissement ni la migration dans le temps. La croissance est
+    ici le **résultat** des facteurs de production et non leur cause
+    première.
+
+**Synthèse Économique**
+
+Le modèle décrit une économie où l'investissement joue le rôle de
+"moteur", la migration celui de "carburant" (réaction rapide dès l'année
+1), et le PIB celui de "résultat" de cette combinaison. Bien que les
+chocs captés par les *dummies* dominent l'histoire courte, le modèle
+prouve que le **duo Investissement-Migration** reste le pilier
+fondamental de la trajectoire de croissance ivoirienne de long terme.
