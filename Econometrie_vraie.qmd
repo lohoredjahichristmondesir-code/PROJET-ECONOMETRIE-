@@ -1628,3 +1628,156 @@ Le modèle décrit une économie où l'investissement joue le rôle de
 chocs captés par les *dummies* dominent l'histoire courte, le modèle
 prouve que le **duo Investissement-Migration** reste le pilier
 fondamental de la trajectoire de croissance ivoirienne de long terme.
+
+### #Prevision
+
+```{r}
+
+# 1. PRÉPARATION ET SPLIT DE LA BASE (TRAIN / TEST)
+
+n_test <- 5  # On garde les 5 dernières années pour le test
+n_obs  <- nrow(data_alignee)
+
+# Séparation des données endogènes
+train_data <- data_alignee[1:(n_obs - n_test), ]
+test_data  <- data_alignee[(n_obs - n_test + 1):n_obs, ]
+
+# Séparation des variables exogènes (Dummies)
+train_dummies <- dummies_epurees[1:(n_obs - n_test), ]
+test_dummies  <- dummies_epurees[(n_obs - n_test + 1):n_obs, ]
+
+
+# 2. ESTIMATION DU MODÈLE SUR LA BASE D'ENTRAÎNEMENT
+
+# On utilise p=1 comme dans ton résumé
+mod_train <- vars::VAR(train_data, p = 1, type = "const", exogen = train_dummies)
+
+
+# 3. PRÉVISIONS (OUT-OF-SAMPLE FORECAST)
+
+predictions <- predict(mod_train, n.ahead = n_test, dumvar = test_dummies)
+
+# Extraction des valeurs pour le PIB
+var_target <- "PIB_diff1"
+fcst_pib   <- predictions$fcst[[var_target]][, "fcst"]
+lower_pib  <- predictions$fcst[[var_target]][, "lower"]
+upper_pib  <- predictions$fcst[[var_target]][, "upper"]
+real_test  <- test_data[, var_target]
+
+
+# 4. GRAPHIQUE 1 : MATCH PRÉVISION VS RÉALITÉ (TEST)
+
+dev.new() # Ouvre une fenêtre ou utilise l'onglet Plot
+plot(1:n_test, real_test, type = "b", col = "black", pch = 19, 
+     ylim = range(c(lower_pib, upper_pib, real_test)),
+     main = "Match Prévision vs Réalité : PIB (Hors-échantillon)",
+     xlab = "Années (Période de Test)", ylab = "Variation du PIB")
+lines(1:n_test, fcst_pib, col = "blue", lwd = 2, type = "b", pch = 17)
+lines(1:n_test, lower_pib, col = "red", lty = 2)
+lines(1:n_test, upper_pib, col = "red", lty = 2)
+legend("topleft", legend = c("Réalité", "Prévision", "IC 95%"), 
+       col = c("black", "blue", "red"), lty = c(1, 1, 2), pch = c(19, 17, NA), bty = "n")
+
+
+# 5. GRAPHIQUE 2 : AJUSTEMENT DU MODÈLE (IN-SAMPLE FIT)
+
+fitted_values <- fitted(mod_train)[, var_target]
+real_train    <- train_data[-1, var_target] # -1 car le VAR perd 1 obs avec le lag p=1
+
+dev.new()
+plot(real_train, type = "l", col = "black", lwd = 1,
+     main = "Qualité de l'ajustement : Réalité vs Modèle (Entraînement)",
+     ylab = "Variation du PIB", xlab = "Temps (Observations)")
+lines(fitted_values, col = "red", lwd = 1.5)
+legend("topleft", legend = c("Réalité Historique", "Valeurs Ajustées (Fitted)"), 
+       col = c("black", "red"), lty = 1, lwd = c(1, 1.5), bty = "n")
+
+
+# 6. CALCUL DE L'ERREUR (RMSE)
+
+rmse_pib <- sqrt(mean((real_test - fcst_pib)^2))
+cat("\n--- PERFORMANCE DU MODÈLE ---\n")
+cat("Erreur moyenne de prédiction (RMSE) sur le PIB :", round(rmse_pib, 4), "\n")
+
+
+```
+
+```{r}
+# 1. On ferme toutes les fenêtres graphiques ouvertes pour "nettoyer"
+graphics.off()
+
+# 2. On divise l'écran : 2 lignes, 1 colonne
+par(mfrow = c(2, 1), mar = c(4, 4, 2, 1))
+
+# --- GRAPHIQUE 1 : L'AJUSTEMENT (PASSÉ) ---
+fitted_pib <- fitted(mod_train)[, "PIB_diff1"]
+real_train <- train_data[-1, "PIB_diff1"]
+
+plot(real_train, type = "l", col = "grey60", 
+     main = "Ajustement sur la période d'entraînement", 
+     ylab = "PIB", xlab = "Temps")
+lines(fitted_pib, col = "red", lwd = 1)
+legend("topleft", legend = c("Réel", "Modèle"), col = c("grey60", "red"), lty = 1, bty = "n", cex = 0.8)
+
+# --- GRAPHIQUE 2 : LA PRÉVISION (FUTUR) ---
+real_test <- test_data[, "PIB_diff1"]
+fcst_pib <- predictions$fcst$PIB_diff1[, "fcst"]
+low_pib <- predictions$fcst$PIB_diff1[, "lower"]
+upp_pib <- predictions$fcst$PIB_diff1[, "upper"]
+
+plot(real_test, type = "b", pch = 19, ylim = range(c(low_pib, upp_pib, real_test)),
+     main = "Prévision vs Réalité (5 dernières années)", 
+     ylab = "PIB", xlab = "Horizon")
+lines(fcst_pib, col = "blue", type = "b", pch = 17)
+lines(low_pib, col = "red", lty = 2)
+lines(upp_pib, col = "red", lty = 2)
+legend("topleft", legend = c("Vrai", "Prédit"), col = c("black", "blue"), pch = c(19, 17), bty = "n", cex = 0.8)
+
+# 3. On remet l'écran à 1x1
+par(mfrow = c(1, 1))
+
+```
+
+**. Évaluation de la performance et capacité prédictive du modèle**
+
+Afin de tester la fiabilité de notre modèle VAR pour l'économie
+ivoirienne (1965-2023), nous avons procédé à une double validation : un
+test d'ajustement historique (intra-échantillon) et un test de prévision
+(hors-échantillon).
+
+**1. Qualité de l'ajustement historique (In-sample fit)**
+
+Le graphique d'ajustement montre une convergence remarquable entre les
+valeurs réelles (en gris) et les valeurs estimées par le modèle (en
+rouge). Le modèle parvient à capter avec précision les retournements de
+tendance et la volatilité du PIB ivoirien sur près de six décennies.
+Cette performance s'explique par l'efficacité du trio variable
+(Migration, Investissement, PIB) complété par les **variables
+*dummies*** qui ont permis de "nettoyer" les chocs historiques majeurs
+sans altérer la relation structurelle de fond.
+
+**2. Performance prédictive (Out-of-sample forecast)**
+
+Pour évaluer la capacité du modèle à anticiper le futur, nous avons
+réalisé une prévision sur une base de test (les 5 dernières années) non
+incluse dans l'estimation. Les résultats sont probants :
+
+-   **Validation statistique :** L'ensemble des valeurs réelles (points
+    noirs) se situe à l'intérieur de l'intervalle de confiance à 95 %
+    (pointillés rouges). Le modèle n'a donc été surpris par aucune
+    variation aberrante.
+
+-   **Précision de l'erreur :** L'erreur quadratique moyenne (RMSE)
+    s'établit à **0,0295**. Cela signifie qu'en moyenne, le modèle ne
+    s'écarte que de **2,95 points de pourcentage** de la variation
+    réelle du PIB.
+
+**Synthèse de l'analyse**
+
+Bien que la réalité (ligne noire) présente des fluctuations
+conjoncturelles annuelles, la prévision du modèle (ligne bleue) décrit
+avec succès la **trajectoire structurelle** de la croissance ivoirienne.
+Ce résultat valide l'utilisation du modèle VAR comme outil d'aide à la
+décision : il prouve que la dynamique identifiée précédemment constitue
+un socle d'information fiable pour prévoir l'évolution de la richesse
+nationale.
