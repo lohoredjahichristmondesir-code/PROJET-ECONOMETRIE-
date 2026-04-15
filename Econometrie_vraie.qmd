@@ -253,19 +253,18 @@ adf.test(MigrationNette_diff1)
 
 La série de la Migration Nette en niveaux présentait une
 non-stationnarité flagrante. Après passage en **première différence** ,
-le test **ADF avec le modele du type 2** rejette l'hypothèse de racine
+le test **ADF avec le modele du type 1** rejette l'hypothèse de racine
 unitaire avec une p-value très significative (P inferieur pratiquement a
 0,01) a tous les seuils independemment du nombre retards ajouté pour
 corriger l'autoccoralation des residus. Cela confirme que la série est
 **intégrée d'ordre 1**, notée **I(1),**
 
-**toutefois** dans le type 3 du test ou l'on peut avoir une idee d'une
-probable rupture structurelle ; on peut constater une p-value un peu
-proche de 0,05 avec un retard de 3, cela explique pourquoi la variance
-semble un peu instable en des points particuliers : ce qui signifie que
-les ruptures structurelles en 1999 et 2014 ont eu un impact au seuil de
-1% , ces periodes correspondent a des periodes d'instabilité politique
-comme le coup d'etat en 1999 avec le general Robert Guei
+**toutefois** l'on peut avoir une idee d'une probable rupture
+structurelle ; la variance semble un peu instable en des points
+particuliers : ce qui signifie que les ruptures structurelles en 1999 et
+2014 ont eu un impact , ces periodes correspondent a des periodes
+d'instabilité politique comme le coup d'etat en 1999 avec le general
+Robert Guei
 
 ## B- Cas du PIB
 
@@ -439,7 +438,7 @@ autoplot(donnee_ts[, "InvestissementNiveau_Log"]) +
 
 ```
 
-### #interpretation( a faire comme le cas de la migration )
+### #interpretation
 
 L allure de la courbe nous confirme la non stationnarité de la variable
 avec des valeurs en dessous et au dessue la moyenne pendant de tres
@@ -531,7 +530,7 @@ se stabilisent à nouveau après 2010. Cette hétéroscédasticité ne remet
 pas en cause la conclusion du test ADF, mais devra être prise en compte
 dans les étapes ultérieures de la modélisation.
 
-## 3 rassablement des donnees differenciées au cas ou
+## 3 rassemblement des donnees differenciées
 
 toutes nos series sont d'ordre d'integralité I(1) ce tableaux ci-dessous
 rassemble les données differenciées en serie ts
@@ -1141,15 +1140,15 @@ l'histoire ivoirienne :
 
 ### Modele1
 
-$$ \Delta \text{MigrationNette}_t = -0.0017 + 0.1299 \, \Delta \text{MigrationNette}_{t-1}^{*} + 0.0059 \, \Delta \text{Log(PIB)}_{t-1} - 0.0044 \, \Delta \text{Log(Investissement)}_{t-1} + 0.0144 \, D_{23} - 0.1484 \, D_{33}^{***} - 0.0330 \, D_{46}^{*} + 0.2330 \, D_{48}^{***} + \epsilon_{1,t} $$
+$$ \Delta \text{MigrationNette}_t = -0.0017 + 0.1299^{*} \, \Delta \text{MigrationNette}_{t-1} + 0.0059 \, \Delta \text{Log(PIB)}_{t-1} - 0.0044 \, \Delta \text{Log(Investissement)}_{t-1} + 0.0144 \, D_{23} - 0.1484 \, D_{33}^{***} - 0.0330 \, D_{46}^{*} + 0.2330 \, D_{48}^{***} + \epsilon_{1,t} $$
 
--   **Interprétation :** La migration nette est caractérisée par une
-    forte auto-corrélation positive. Elle est cependant dominée par des
-    chocs exogènes majeurs ( *instabilité politique et coup d'etat
-    ,consolidation de la croissance et attractivité regionales,reprise
-    economique post crise et reconstruction*) indiquant que les flux
-    répondent davantage à des événements structurels ou politiques qu'à
-    des variables économiques immédiates.
+**Interprétation :** La migration nette est caractérisée par une forte
+auto-corrélation positive. Elle est cependant dominée par des chocs
+exogènes majeurs ( *instabilité politique et coup d'etat ,consolidation
+de la croissance et attractivité regionales,reprise economique post
+crise et reconstruction*) indiquant que les flux répondent davantage à
+des événements structurels ou politiques qu'à des variables économiques
+immédiates.
 
 -   **Performance :** $$ R^{2} = 0,873$$
 
@@ -1250,7 +1249,7 @@ prédictif sur la migration ni sur la croissance économique. Le test de
 causalité instantanée corrobore ce constat (Chi² = 4.100, df = 2, p =
 0.129).
 
-### 7.4 causalité globale  inverse 
+### 7.4 causalité globale inverse
 
 ```{r}
 # H0: (Migration AND Investissement) do not Granger-cause PIB
@@ -1272,7 +1271,7 @@ migratoires et l'investissement, on observe en revanche **que la
 migration nette et l'investissement exercent une influence conjointe
 significative sur la croissance du PIB** (p-value = 0,045)
 
-### 7.5 causalité individuel 
+### 7.5 causalité individuel
 
 ```{r}
 library(lmtest)
@@ -1353,7 +1352,7 @@ révélé une structure en cascade :
     par des **effets de retard** (Lags). Cela justifie l'utilisation du
     modèle VAR pour capturer la transmission temporelle des chocs.
 
-    #### ##interpretations economique  
+    #### ##interpretations economique
 
     (seul les tests IFR pourront confirmer cela, test que nous feront
     dans la suite )
@@ -1381,7 +1380,7 @@ révélé une structure en cascade :
     n'est pas la richesse accumulée qui attire, c'est l'opportunité
     d'investissement immédiat qui déclenche le cycle.
 
-### 8  **fonctions de réponse impulsionnelle** 
+### 8 **fonctions de réponse impulsionnelle**
 
 Les Fonctions de Réponse Impulsionnelle (IRF) Elles mesurent la réaction
 d'une variable à un "choc" (une hausse soudaine) d'une autre variable.
@@ -1417,7 +1416,7 @@ significatif au seuil de 95%, car l'intervalle de confiance englobe la
 ligne du zéro. Cela indique que, malgré la causalité de Granger
 identifiée, l'effet dynamique reste marqué par une forte incertitude.
 
-###  IRF :choc (INVESTISSEMENT,MIGRATIONS) -\> Réponse du PIB
+### IRF :choc (INVESTISSEMENT,MIGRATIONS) -\> Réponse du PIB
 
 ```{r}
 
@@ -1448,7 +1447,7 @@ fournit la force de travail. Dans le contexte ivoirien (1965-2023), l'un
 ne va pas sans l'autre pour générer une croissance statistiquement
 prédictible. analysons la part de chacun exactement via le test suivant
 
-###  **9 Décomposition de la variance**
+### **9 Décomposition de la variance**
 
  La Décomposition de la Variance de l'Erreur (FEVD) Elle mesure la part
 de responsabilité de chaque variable dans les variations des autres.
@@ -1536,7 +1535,7 @@ la cote d'ivoire (choses captes par les duminies du modele corrigés ) ,
 l'investissement est le levier clé de fond pour moduler une dynamique
 migratoire par ailleurs très autonome.
 
-#### **#la Décomposition de la Variance de l'investissement** 
+#### **#la Décomposition de la Variance de l'investissement**
 
 L'investissement s'impose comme la variable la plus **autonome** du
 modèle, s'expliquant à plus de 90 % par lui-même. Cependant, deux
@@ -1582,7 +1581,7 @@ nuances majeures ressortent :
     réagit vite (dès l'année 1), et l'investissement consolide l'effet
     (année 2+).
 
-### Bilan du modele Var et causalité au sens de granger 
+### Bilan du modele Var et causalité au sens de granger
 
 **1. Solidité et Structure**
 
