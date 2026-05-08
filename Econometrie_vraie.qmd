@@ -548,11 +548,11 @@ View(donnee_diff_ts)
 ```{r}
 
 # Préparer les données en format long
-donnee_long <- donnee %>%
-  select(annee, PIB_reel_Log, InvestissementNiveau_Log, MigrationNette) %>%
-  pivot_longer(cols = -annee, 
-               names_to = "Variable", 
-               values_to = "Valeur")
+donnee_long <- donnee %>% 
+  dplyr::select(annee, PIB_reel_Log, InvestissementNiveau_Log, MigrationNette) %>%
+  tidyr::pivot_longer(cols = -annee, 
+                      names_to = "Variable", 
+                      values_to = "Valeur")
 
 # Graphique
 ggplot(donnee_long, aes(x = annee, y = Valeur, color = Variable)) +
@@ -743,7 +743,8 @@ migratoire) sera résorbée par le système au fil du temps, garantissant
 ainsi la validité de nos prévisions et de nos analyses.
 
 ```{r}
-##ici je vais refaire l'hypothese de normalités car le premier a montrer que nous avons oubliez de considerer les chocs structurels ,on va les identifiers d'abords puis refaire le test par la suite
+norm_test1 <- normality.test(var.m)
+norm_test1
 ```
 
 ### 6.3 stabilité structurelle des coefficients du modeles
@@ -1074,7 +1075,7 @@ points(roots_val, rep(0, length(roots_val)), pch=19, col="blue", cex=1.5)
 
 # 6. Ajout d'une légende pour plus de clarté
 legend("topright", legend=c("Racines AR", "Cercle unité"), 
-       col=c("blue", "red"), pch=c(19, NA), lty=c(NA, 1))
+       col=c("blue", "black"), pch=c(19, NA), lty=c(NA, 1))
 
 
 ```
@@ -1702,10 +1703,7 @@ cat("Erreur moyenne de prédiction (RMSE) sur le PIB :", round(rmse_pib, 4), "\n
 ```
 
 ```{r}
-# 1. On ferme toutes les fenêtres graphiques ouvertes pour "nettoyer"
 graphics.off()
-
-# 2. On divise l'écran : 2 lignes, 1 colonne
 par(mfrow = c(2, 1), mar = c(4, 4, 2, 1))
 
 # --- GRAPHIQUE 1 : L'AJUSTEMENT (PASSÉ) ---
@@ -1719,20 +1717,24 @@ lines(fitted_pib, col = "red", lwd = 1)
 legend("topleft", legend = c("Réel", "Modèle"), col = c("grey60", "red"), lty = 1, bty = "n", cex = 0.8)
 
 # --- GRAPHIQUE 2 : LA PRÉVISION (FUTUR) ---
-real_test <- test_data[, "PIB_diff1"]
-fcst_pib <- predictions$fcst$PIB_diff1[, "fcst"]
-low_pib <- predictions$fcst$PIB_diff1[, "lower"]
-upp_pib <- predictions$fcst$PIB_diff1[, "upper"]
+real_test <- as.numeric(test_data[, "PIB_diff1"])   #forcer vecteur numérique
+fcst_pib  <- predictions$fcst$PIB_diff1[, "fcst"]
+low_pib   <- predictions$fcst$PIB_diff1[, "lower"]
+upp_pib   <- predictions$fcst$PIB_diff1[, "upper"]
 
-plot(real_test, type = "b", pch = 19, ylim = range(c(low_pib, upp_pib, real_test)),
+n <- length(real_test)
+x_axis <- 1:n   # axe commun explicite
+
+plot(x_axis, real_test, type = "b", pch = 19,
+     ylim = range(c(low_pib, upp_pib, real_test), na.rm = TRUE),
      main = "Prévision vs Réalité (5 dernières années)", 
      ylab = "PIB", xlab = "Horizon")
-lines(fcst_pib, col = "blue", type = "b", pch = 17)
-lines(low_pib, col = "red", lty = 2)
-lines(upp_pib, col = "red", lty = 2)
-legend("topleft", legend = c("Vrai", "Prédit"), col = c("black", "blue"), pch = c(19, 17), bty = "n", cex = 0.8)
+lines(x_axis, fcst_pib, col = "blue", type = "b", pch = 17)
+lines(x_axis, low_pib,  col = "red", lty = 2)
+lines(x_axis, upp_pib,  col = "red", lty = 2)
+legend("topleft", legend = c("Vrai", "Prédit"), 
+       col = c("black", "blue"), pch = c(19, 17), bty = "n", cex = 0.8)
 
-# 3. On remet l'écran à 1x1
 par(mfrow = c(1, 1))
 
 ```
